@@ -5,22 +5,19 @@ const date=()=>new Date().toISOString().slice(0,10);
 const titles={overview:'الرئيسية',buildings:'العمارات',apartments:'الشقق والسكان',payments:'التحصيلات',expenses:'المصروفات',treasury:'الخزنة',users:'إدارة المستخدمين'};
 
 function WizardForm({children,...props}){
- const [step,setStep]=useState(0);
- const items=React.Children.toArray(children);
- const fields=items.filter(x=>x.type!=='button');
- const actions=items.filter(x=>x.type==='button');
+ const [step,setStep]=useState(0),[open,setOpen]=useState(false);
+ const items=React.Children.toArray(children),fields=items.filter(x=>x.type!=='button'),actions=items.filter(x=>x.type==='button');
  const steps=Array.from({length:Math.max(1,Math.ceil(fields.length/3))},(_,i)=>fields.slice(i*3,(i+1)*3));
  const review=step===steps.length;
- return <form {...props} className={['wizard-form',props.className||''].join(' ')}>
-  <div className="wizard-progress"><div className="wizard-track"><i style={{width:`${((step+1)/(steps.length+1))*100}%`}}/></div>
-   <div className="wizard-steps">{steps.map((_,i)=><span key={i} className={step===i?'current':step>i?'done':''}><b>{i+1}</b><small>الخطوة {i+1}</small></span>)}<span className={review?'current':''}><b>{steps.length+1}</b><small>مراجعة</small></span></div>
-  </div>
-  <div className="wizard-fields">{review?fields:steps[step]}</div>
-  <div className="wizard-controls">
-   <button type="button" className="outline" disabled={step===0} onClick={()=>setStep(v=>Math.max(0,v-1))}>السابق</button>
-   {review?<>{actions}{/* submit actions remain native */}</>:<button type="button" className="primary" onClick={e=>{const box=e.currentTarget.closest('form');const inputs=[...box.querySelectorAll('.wizard-fields input,.wizard-fields select,.wizard-fields textarea')];if(inputs.every(x=>!x.required||x.checkValidity()))setStep(v=>v+1);else inputs.find(x=>x.required&&!x.checkValidity())?.reportValidity()}}>التالي <span aria-hidden="true">←</span></button>}
-  </div>
- </form>
+ return <><button type="button" className="wizard-launch" onClick={()=>{setStep(0);setOpen(true)}}><span>＋</span> إضافة جديد</button>
+ {open&&<div className="wizard-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setOpen(false)}}><section className="wizard-dialog" role="dialog" aria-modal="true">
+ <header className="wizard-dialog-head"><div><small>معالج الإضافة</small><h3>إضافة بيانات جديدة</h3><p>اتبع الخطوات لإكمال البيانات بسهولة</p></div><button type="button" className="wizard-close" onClick={()=>setOpen(false)} aria-label="إغلاق">×</button></header>
+ <form {...props} className={['wizard-form',props.className||''].join(' ')}>
+ <div className="wizard-progress"><div className="wizard-track"><i style={{width:(((step+1)/(steps.length+1))*100)+'%'}}/></div><div className="wizard-steps">{steps.map((_,i)=><span key={i} className={step===i?'current':step>i?'done':''}><b>{i+1}</b><small>الخطوة {i+1}</small></span>)}<span className={review?'current':''}><b>✓</b><small>مراجعة</small></span></div></div>
+ <div className="wizard-fields">{review?fields:steps[step]}</div>
+ <div className="wizard-controls"><button type="button" className="outline" disabled={step===0} onClick={()=>setStep(v=>Math.max(0,v-1))}>السابق</button>
+ {review?<>{actions}<button type="button" className="outline" onClick={()=>setOpen(false)}>إلغاء</button></>:<button type="button" className="primary" onClick={e=>{const inputs=[...e.currentTarget.closest('form').querySelectorAll('.wizard-fields input,.wizard-fields select,.wizard-fields textarea')];if(inputs.every(x=>!x.required||x.checkValidity()))setStep(v=>v+1);else inputs.find(x=>x.required&&!x.checkValidity())?.reportValidity()}}>التالي ←</button>}</div>
+ </form></section></div>}</>;
 }
 
 export default function App(){
@@ -28,6 +25,8 @@ export default function App(){
  const [page,setPage]=useState('overview'),[buildings,setBuildings]=useState([]),[members,setMembers]=useState([]),[apartments,setApartments]=useState([]),[links,setLinks]=useState([]),[payments,setPayments]=useState([]),[expenses,setExpenses]=useState([]),[dues,setDues]=useState([]),[accounts,setAccounts]=useState([]),[transactions,setTransactions]=useState([]),[subscriptions,setSubscriptions]=useState([]);
  const [email,setEmail]=useState(''),[username,setUsername]=useState(''),[password,setPassword]=useState('');
  const [buildingId,setBuildingId]=useState('all'),[message,setMessage]=useState('');
+ const [theme,setTheme]=useState(()=>localStorage.getItem('bms-theme')||'light');
+ useEffect(()=>{localStorage.setItem('bms-theme',theme)},[theme]);
  const role=profile?.role||'resident',isOwner=['owner','superuser'].includes(role),isAdmin=['owner','superuser','admin'].includes(role);
  const notify=t=>{setMessage(t);setTimeout(()=>setMessage(''),3500)};
  const load=useCallback(async()=>{
@@ -85,7 +84,7 @@ export default function App(){
  const apartmentSelect=<label className="field"><span>الشقة</span><select name="apartment_id" required>{apartments.filter(a=>visibleIds.includes(a.building_id)).map(a=><option key={a.id} value={a.id}>{buildingMap[a.building_id]?.name} – {a.unit_number}</option>)}</select></label>;
  const stat=(label,value)=><div className="stat"><div className="stat-top"><span>{label}</span></div><strong>{value}</strong></div>;
  const table=(headers,body)=><div className="table-scroll"><table><thead><tr>{headers.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{body}</tbody></table></div>;
- return <div className="app" dir="rtl"><aside className="sidebar"><div className="brand"><div className="brand-mark">B</div><div><b>إدارة العمارات</b><small>BUILDING MANAGEMENT</small></div></div><div className="workspace"><div className="avatar">{(profile?.display_name||session.user.email||'U').slice(0,1).toUpperCase()}</div><div><b>{profile?.display_name||session.user.email}</b><small>{role==='owner'?'مالك النظام':role==='superuser'?'مدير أعلى':role==='admin'?'مدير عمارة':'ساكن'}</small></div></div><nav>{nav.filter(n=>n!=='buildings'||isAdmin).filter(n=>n!=='users'||role!=='resident').map(n=><button key={n} className={page===n?'active':''} onClick={()=>setPage(n)}>{titles[n]}</button>)}</nav><div className="sidebar-bottom"><button className="outline full" onClick={signOut}>تسجيل الخروج</button></div></aside><main className="main"><header className="topbar"><b>{titles[page]}</b><div className="top-actions"><select value={buildingId} onChange={e=>setBuildingId(e.target.value)}><option value="all">كل العمارات المتاحة</option>{buildings.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select><button className="outline" onClick={load}>تحديث</button></div></header><section className="content"><div className="page-head"><div><h1>{titles[page]}</h1><p>البيانات محمّلة مباشرة من قاعدة البيانات بصلاحيات حسابك.</p></div></div>
+ return <div className={"app theme-"+theme} dir="rtl"><aside className="sidebar"><div className="brand"><div className="brand-mark">B</div><div><b>إدارة العمارات</b><small>BUILDING MANAGEMENT</small></div></div><div className="workspace"><div className="avatar">{(profile?.display_name||session.user.email||'U').slice(0,1).toUpperCase()}</div><div><b>{profile?.display_name||session.user.email}</b><small>{role==='owner'?'مالك النظام':role==='superuser'?'مدير أعلى':role==='admin'?'مدير عمارة':'ساكن'}</small></div></div><nav>{nav.filter(n=>n!=='buildings'||isAdmin).filter(n=>n!=='users'||role!=='resident').map(n=><button key={n} className={page===n?'active':''} onClick={()=>setPage(n)}>{titles[n]}</button>)}</nav><div className="sidebar-bottom"><button className="outline full" onClick={signOut}>تسجيل الخروج</button></div></aside><main className="main"><header className="topbar"><b>{titles[page]}</b><div className="top-actions"><button type="button" className="theme-toggle" onClick={()=>setTheme(t=>t==="light"?"dark":"light")} title="تغيير المظهر">{theme==="light"?"☾":"☀"}</button><label className="building-filter"><span>عرض</span><select value={buildingId} onChange={e=>setBuildingId(e.target.value)}><option value="all">كل العمارات المتاحة</option>{buildings.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label><button className="refresh-btn" onClick={load} disabled={busy} title="تحديث البيانات" aria-label="تحديث البيانات"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.6-2L20 12M4 12l2.8 5a7 7 0 0 0 11.6-2"/></svg></button></div></header><section className="content"><div className="page-head"><div><h1>{titles[page]}</h1><p>البيانات محمّلة مباشرة من قاعدة البيانات بصلاحيات حسابك.</p></div></div>
  {error&&<div className="notice" role="alert">{error}</div>}{busy&&<p>جارٍ تنفيذ العملية…</p>}
  {page==='overview'&&<><div className="stats">{stat('العمارات المتاحة',visibleBuildings.length)}{stat('الشقق',apartments.filter(a=>visibleIds.includes(a.building_id)).length)}{stat('تحصيلات معتمدة',money(incoming))}{stat('مصروفات معتمدة',money(outgoing))}{stat('الرصيد بالخزنة',money(balance))}{stat('عمليات معلقة',pending)}</div><div className="panel"><h3>العمارات</h3>{table(['العمارة','العنوان','عدد الشقق','الاشتراك الشهري'],visibleBuildings.map(b=><tr key={b.id}><td>{b.name}</td><td>{b.address}</td><td>{b.apartment_count}</td><td>{money(subscriptions.find(s=>s.building_id===b.id)?.monthly_amount)}</td></tr>))}</div></>}
  {page==='buildings'&&<>{isOwner&&<div className="panel"><h3>إضافة عمارة</h3><WizardForm className="grid-form" onSubmit={addBuilding}>{field('اسم العمارة','name')}{field('العنوان','address')}{field('عدد الشقق','count','number',true,{min:1,max:500})}{field('الاشتراك الشهري','fee','number',true,{min:0,step:'0.01'})}<button className="primary" disabled={busy}>حفظ العمارة وإنشاء الشقق</button></WizardForm></div>}<div className="panel"><h3>العمارات</h3>{table(['الاسم','العنوان','عدد الشقق'],visibleBuildings.map(b=><tr key={b.id}><td>{b.name}</td><td>{b.address}</td><td>{b.apartment_count}</td></tr>))}</div></>}

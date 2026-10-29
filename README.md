@@ -1,24 +1,15 @@
-# Building Management System
+# Pocket Property Management — Building Management
 
-واجهة عربية أولية لإدارة عمارة من 33 شقة باستخدام React + Vite.
+واجهة React + Vite عربية RTL لإدارة العمارات، الشقق والسكان، التحصيلات، المصروفات، الخزنة والتقارير.
 
-## التشغيل
-1. فك ضغط الملف وافتح المجلد في VS Code.
-2. افتح Terminal من داخل المجلد.
-3. شغّل:
+## التشغيل المحلي
+- Node.js 20 أو أحدث
+- `npm install`
+- انسخ `.env.example` إلى `.env.local` وأدخل إعدادات Supabase عند تفعيل التكامل
+- `npm run dev`
+- `npm run build`
 
-```bash
-npm install
-npm run dev
-```
+## تنبيه الحالة
+هذا التسليم **مصدر واجهة أولي / Demo وليس نظامًا إنتاجيًا متصلًا بقاعدة البيانات**. البيانات الحالية تجريبية ومحفوظة في `localStorage`. لا توجد حاليًا مصادقة Supabase فعلية أو عمليات CRUD حقيقية أو اختبار RLS كامل. لا تدخل بيانات مالية أو بيانات سكان حقيقية.
 
-4. افتح عنوان localhost الظاهر في الطرفية.
-
-## Supabase
-- انسخ `.env.example` إلى `.env.local`.
-- أضف Project URL وPublishable Key من لوحة Supabase.
-- أعد تشغيل `npm run dev`.
-
-التطبيق الحالي واجهة تجريبية؛ التسجيلات داخلها لا تُحفظ في قاعدة بيانات Supabase بعد. ملف `supabase/schema.sql` نقطة بداية لمخطط البيانات، ويجب مراجعة سياسات الصلاحيات واختبارها قبل إدخال بيانات حقيقية.
-
-لا تضع مطلقًا `service_role` أو Secret Key في ملفات الواجهة أو متغيرات `VITE_`.
+`supabase-schema.sql` مخطط تأسيسي لمشروع جديد فقط، ولا يُنفذ على قاعدة Supabase الحالية دون مطابقة ومراجعة. راجع `UPLOAD-TO-GITHUB.md` لخطوات الرفع وحالة الأعمال المتبقية.

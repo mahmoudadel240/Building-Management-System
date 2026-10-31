@@ -1,7 +1,7 @@
 import React from 'react';
 import { Dialog, Table, StatusPill } from '../components/ui';
 import { money, month, date, months, personName, METHOD_LABEL } from '../lib/format';
-import { balanceOf, residentsOf, feeOf } from '../lib/stats';
+import { balanceOf, residentsOf, feeOf, nextPayment } from '../lib/stats';
 
 // Everything about one apartment: what it owes, any advance payment, month by month,
 // and every payment recorded for it.
@@ -12,7 +12,7 @@ export default function ApartmentDetails({ open, onClose, data, apartment, onEdi
   const owed = Number(bal.balance || 0);
   const credit = Number(bal.credit || 0);
   const fee = Number(feeOf(data, apartment.building_id) || 0);
-  const coversMonths = fee > 0 ? Math.floor(credit / fee) : 0;
+  const next = nextPayment(data, apartment.id);
   const dues = data.dues.filter((d) => d.apartment_id === apartment.id).sort((x, y) => (x.period_month < y.period_month ? 1 : -1));
   const pays = data.payments.filter((p) => p.apartment_id === apartment.id);
   const people = residentsOf(data, apartment.id);
@@ -31,12 +31,12 @@ export default function ApartmentDetails({ open, onClose, data, apartment, onEdi
         <div className={credit > 0 ? 'good' : ''}>
           <small>رصيد مدفوع مقدماً</small>
           <strong>{money(credit)}</strong>
-          <span>{credit > 0 ? (coversMonths ? `يغطي حوالي ${months(coversMonths)} قدام` : 'هيتخصم من الشهر الجاي') : 'مفيش دفع مقدم'}</span>
+          <span>{credit > 0 ? (next?.paidThrough ? `مدفوع لحد ${month(next.paidThrough)}` : 'هيتخصم من الشهر الجاي') : 'مفيش دفع مقدم'}</span>
         </div>
-        <div>
-          <small>إجمالي المدفوع المعتمد</small>
-          <strong>{money(bal.total_payments || 0)}</strong>
-          <span>الاشتراك الشهري {money(fee)}</span>
+        <div className={next?.overdue ? 'bad' : ''}>
+          <small>{next?.overdue ? 'مطلوب دلوقتي' : 'الدفعة الجاية'}</small>
+          <strong>{next ? money(next.amount) : '—'}</strong>
+          <span>{next ? `${next.overdue ? 'كان ميعادها' : 'ميعادها'} ${date(next.date + 'T00:00:00')}` : `الاشتراك الشهري ${money(fee)}`}</span>
         </div>
       </div>
 

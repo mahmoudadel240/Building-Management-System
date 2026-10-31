@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PageHead, Panel, Table, StatusPill, Empty, FormDialog, SelectField } from '../components/ui';
 import { money, month, date, months, METHOD_LABEL } from '../lib/format';
-import { balanceOf, feeOf } from '../lib/stats';
+import { balanceOf, nextPayment } from '../lib/stats';
 import { supabase } from '../lib/supabase';
 import PaymentDialog from './PaymentDialog.jsx';
 import ApartmentDetails from './ApartmentDetails.jsx';
@@ -44,7 +44,7 @@ export default function ResidentHome({ data, me, act }) {
           const bal = balanceOf(data, a.id);
           const owes = Number(bal?.balance || 0) > 0;
           const credit = Number(bal?.credit || 0);
-          const fee = Number(feeOf(data, a.building_id) || 0);
+          const next = nextPayment(data, a.id);
           return (
             <div key={a.id} className={'apt-card ' + (owes ? 'owes' : 'clear')}>
               <span className="muted-text">{bName(a.building_id)}</span>
@@ -56,8 +56,15 @@ export default function ResidentHome({ data, me, act }) {
               </div>
               {credit > 0 && (
                 <div className="credit-note">
-                  دافع مقدم <b>{money(credit)}</b>
-                  {fee > 0 && Math.floor(credit / fee) > 0 && <> · يغطي {months(Math.floor(credit / fee))} قدام</>}
+                  <span>دافع مقدم <b>{money(credit)}</b></span>
+                  {next?.paidThrough && <span>مدفوع لحد <b>{month(next.paidThrough)}</b></span>}
+                </div>
+              )}
+              {next && !owes && (
+                <div className="next-due">
+                  <small>الدفعة الجاية</small>
+                  <b>{date(next.date + 'T00:00:00')}</b>
+                  <span>{money(next.amount)}</span>
                 </div>
               )}
               <div className="card-actions">

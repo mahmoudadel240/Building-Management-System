@@ -158,7 +158,10 @@ button{font-family:'Cairo',sans-serif}
 .detail-people{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px}
 .detail-people>small{font-size:12px;color:#6f7f94;margin-left:6px}
 .detail-title{font-size:14px;margin:16px 0 8px;color:#1d3d63}
-.credit-note{background:var(--ok-bg);color:var(--ok);border-radius:10px;padding:8px 12px;font-size:13px}
+.credit-note{background:var(--ok-bg);color:var(--ok);border-radius:10px;padding:8px 12px;font-size:13px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.next-due{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;border:1px dashed #c9d6e6;border-radius:10px;padding:9px 12px;font-size:13px}
+.next-due small{color:#6f7f94;font-size:12px}.next-due b{color:#1c3150;white-space:nowrap}.next-due span{font-weight:700;color:#315f9b}
+.theme-dark .next-due{border-color:#3a4e67}.theme-dark .next-due b{color:#e7effa}
 .card-actions{display:grid;grid-template-columns:1fr 1.4fr;gap:8px}
 .card-actions button{justify-content:center}
 .outline.small{padding:6px 11px;font-size:12px}

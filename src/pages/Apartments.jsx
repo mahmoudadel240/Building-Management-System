@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PageHead, Panel, Table, FormDialog, Field, SelectField, Empty } from '../components/ui';
-import { money, num, months, personName } from '../lib/format';
-import { balanceOf, residentsOf } from '../lib/stats';
+import { money, num, months, month, date, personName } from '../lib/format';
+import { balanceOf, residentsOf, nextPayment } from '../lib/stats';
 import { supabase } from '../lib/supabase';
 import ApartmentDetails from './ApartmentDetails.jsx';
 import PaymentDialog from './PaymentDialog.jsx';
@@ -52,11 +52,12 @@ export default function Apartments({ data, me, scoped, act }) {
         return (
           <Panel key={b.id} title={b.name} action={<span className="muted-text">{num(apts.length)} شقة</span>}>
             <Table empty={filter === 'owing' ? 'كل الشقق مسددة' : filter === 'credit' ? 'مفيش شقق دافعة مقدم' : 'لا توجد شقق'}
-              headers={['الشقة', 'الدور', 'السكان', 'الحساب', '']} rows={apts.map((a) => {
+              headers={['الشقة', 'الدور', 'السكان', 'الحساب', 'الدفعة الجاية', '']} rows={apts.map((a) => {
                 const bal = balanceOf(data, a.id);
                 const owed = Number(bal?.balance || 0);
                 const credit = Number(bal?.credit || 0);
                 const people = residentsOf(data, a.id);
+                const next = a.is_active === false ? null : nextPayment(data, a.id);
                 return (
                   <tr key={a.id} className={a.is_active === false ? 'inactive' : ''}>
                     <td><b>شقة {a.unit_number}</b>{a.is_active === false && <span className="cell-sub">موقوفة</span>}</td>
@@ -67,7 +68,14 @@ export default function Apartments({ data, me, scoped, act }) {
                       {owed <= 0 && credit > 0 && <span className="pill success">مقدم {money(credit)}</span>}
                       {owed <= 0 && credit <= 0 && <span className="pill muted">مسدد</span>}
                       {owed > 0 && <span className="cell-sub">{months(bal.unpaid_months)}</span>}
+                      {owed <= 0 && credit > 0 && next?.paidThrough && <span className="cell-sub">مدفوع لحد {month(next.paidThrough)}</span>}
                     </td>
+                    <td>{next ? (
+                      <>
+                        <b className={next.overdue ? 'text-bad' : ''}>{date(next.date + 'T00:00:00')}</b>
+                        <span className="cell-sub">{next.overdue ? `فات ميعادها · ${money(next.amount)}` : money(next.amount)}</span>
+                      </>
+                    ) : '—'}</td>
                     <td><div className="row-actions">
                       <button className="outline small" onClick={() => setDetails(a)}>التفاصيل</button>
                       {me.canManage(a.building_id) && <button className="outline small" onClick={() => openEdit(a)} aria-label={`تعديل شقة ${a.unit_number}`}>تعديل</button>}

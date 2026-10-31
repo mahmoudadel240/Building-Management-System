@@ -146,8 +146,7 @@ export default function App() {
     <div className={'app theme-' + theme} dir="rtl">
       <aside className={'sidebar' + (menuOpen ? ' show' : '')}>
         <div className="brand">
-          <div className="brand-mark">B</div>
-          <div><b>إدارة العمارات</b><small>BUILDING MANAGEMENT</small></div>
+          <img className="brand-logo" src="/beitna-logo-white.svg" alt="بيتنا" />
           <button type="button" className="mobile-close" onClick={() => setMenuOpen(false)} aria-label="إغلاق القائمة">×</button>
         </div>
         <div className="workspace">

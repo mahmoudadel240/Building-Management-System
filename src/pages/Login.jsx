@@ -39,8 +39,8 @@ export default function Login() {
   return (
     <main className="center-screen login" dir="rtl">
       <div className="panel narrow">
-        <div className="brand-mark big">B</div>
-        <h1>إدارة العمارات</h1>
+        <img className="login-logo" src="/beitna-logo.svg" alt="بيتنا" />
+        <h1>أهلاً بيك في بيتك</h1>
         <p className="muted-text">سجّل الدخول باسم المستخدم أو البريد الإلكتروني.</p>
         <form onSubmit={signIn} className="login-form">
           <label className="field">

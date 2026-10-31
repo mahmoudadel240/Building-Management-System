@@ -1,6 +1,13 @@
-# إدارة العمارات — Building Management System
+# بيتنا — Beitna
+
+تطبيق إدارة العمارات (Building Management System).
 
 واجهة React + Vite عربية (RTL) لإدارة العمارات، الشقق والسكان، التحصيلات، المصروفات والخزنة. البيانات والمصادقة على Supabase، والنشر على Vercel.
+
+## البراند
+- اللوجو والأيقونات في `public/` (`beitna-logo.svg`، `beitna-mark.svg`، `favicon.svg`، `apple-touch-icon.png`).
+- ألوان وخطوط ومسافات البراند في `src/brand.css` (نفس توكنز الـ design system «Beitna — بيتنا»).
+- الخطوط: Alexandria للعناوين والأرقام، Tajawal للنصوص.
 
 ## التشغيل المحلي
 - Node.js 20 أو أحدث

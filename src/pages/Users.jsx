@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { PageHead, Panel, Table, FormDialog, Field, SelectField, ConfirmDialog } from '../components/ui';
+import { PageHead, Panel, Table, FormDialog, Field, SelectField, ConfirmDialog, CheckGroup } from '../components/ui';
 import { ROLE_LABEL, personName, date } from '../lib/format';
 import { supabase } from '../lib/supabase';
 
@@ -10,6 +10,8 @@ export default function Users({ data, me, scoped, act }) {
   const [role, setRole] = useState('resident');
   const [buildingId, setBuildingId] = useState('');
   const [confirm, setConfirm] = useState(null); // { title, message, run }
+  const [linking, setLinking] = useState(null); // profile to link to more apartments
+  const [linkBuilding, setLinkBuilding] = useState('');
 
   const manageable = data.buildings.filter((b) => me.canManage(b.id));
   useEffect(() => {
@@ -35,8 +37,31 @@ export default function Users({ data, me, scoped, act }) {
     setBusy(true);
     const err = await act(() => supabase.functions.invoke('invite-building-user', { body: {
       username: fd.get('username'), email: fd.get('email') || null, password: fd.get('password') || null,
-      member_role: role, building_id: role === 'superuser' ? null : buildingId, apartment_id: fd.get('apartment_id') || null,
+      member_role: role, building_id: role === 'superuser' ? null : buildingId, apartment_ids: fd.getAll('apartment_ids'),
     } }), fd.get('email') ? 'اتعمل الحساب واتبعتت دعوة على البريد' : 'اتعمل الحساب');
+    setBusy(false); setError(err);
+    return !err;
+  }
+
+  // Apartments already linked (or requested) for a user
+  const linkedTo = (uid) => data.links.filter((l) => l.user_id === uid && ['approved', 'pending'].includes(l.status)).map((l) => l.apartment_id);
+  const occupants = (aid) => data.links.filter((l) => l.apartment_id === aid && l.status === 'approved').length;
+  const aptOptions = (bid, uid) => data.apartments.filter((a) => a.building_id === bid)
+    .sort((x, y) => x.unit_number.localeCompare(y.unit_number, 'ar', { numeric: true }))
+    .map((a) => {
+      const mine = uid && linkedTo(uid).includes(a.id);
+      const full = occupants(a.id) >= 2;
+      return { value: a.id, label: `شقة ${a.unit_number}`, disabled: mine || full, note: mine ? 'مربوط بالفعل' : full ? 'فيها ساكنين' : '' };
+    });
+
+  async function linkMore(fd) {
+    const ids = fd.getAll('apartment_ids');
+    if (!ids.length) { setError('اختار شقة واحدة على الأقل'); return false; }
+    setBusy(true);
+    const now = new Date().toISOString();
+    const err = await act(() => supabase.from('apartment_residents').insert(ids.map((id) => ({
+      apartment_id: id, user_id: linking.id, requested_by: me.id, status: 'approved', reviewed_by: me.id, reviewed_at: now,
+    }))), ids.length > 1 ? `اتربط بـ ${ids.length} شقق` : 'اتربط بالشقة');
     setBusy(false); setError(err);
     return !err;
   }
@@ -59,7 +84,6 @@ export default function Users({ data, me, scoped, act }) {
     ...(me.isOwner ? [{ value: 'admin', label: 'مدير عمارة' }] : []),
     ...(me.profile?.role === 'owner' ? [{ value: 'superuser', label: 'مدير أعلى (كل العمارات)' }] : []),
   ];
-  const freeApartments = data.apartments.filter((a) => a.building_id === buildingId);
 
   return (
     <>
@@ -100,7 +124,10 @@ export default function Users({ data, me, scoped, act }) {
               <td>{homes.length ? homes.map((l) => (
                 <span key={l.id} className="chip">شقة {apt(l.apartment_id)?.unit_number}
                   {me.canManage(apt(l.apartment_id)?.building_id) && <button className="chip-x" aria-label="فك الربط" onClick={() => unlink(l, p)}>×</button>}
-                </span>)) : '—'}</td>
+                </span>)) : <span className="muted-text">—</span>}
+                {!global && memberships.some((m) => me.canManage(m.building_id)) && (
+                  <button className="chip add" onClick={() => { setError(''); setLinkBuilding(memberships.find((m) => me.canManage(m.building_id)).building_id); setLinking(p); }}>＋ شقة</button>
+                )}</td>
               <td>{me.isOwner && !global && memberships.map((m) => (
                 <button key={m.id} className="text-btn" onClick={() => setMemberRole(m, m.member_role === 'admin' ? 'resident' : 'admin')}>
                   {m.member_role === 'admin' ? 'إلغاء الإدارة' : 'اجعله مدير'}{memberships.length > 1 ? ` (${bName(m.building_id)})` : ''}
@@ -113,20 +140,20 @@ export default function Users({ data, me, scoped, act }) {
       <FormDialog
         open={adding} onClose={() => setAdding(false)} title="إضافة مستخدم" submitLabel="إنشاء الحساب" error={error} busy={busy} onSubmit={invite}
         steps={[
-          { title: 'الصلاحية', content: (
+          { title: 'الصلاحية', hint: 'المستخدم ده هيشوف إيه؟', content: (
             <>
               <SelectField full label="الدور" name="member_role" required value={role} onChange={(e) => setRole(e.target.value)} options={roleOptions} />
               {role !== 'superuser' && (
                 <SelectField label="العمارة" name="building_id" required value={buildingId} onChange={(e) => setBuildingId(e.target.value)}
                   placeholder={manageable.length === 1 ? undefined : 'اختار العمارة'} options={manageable.map((b) => ({ value: b.id, label: b.name }))} />
               )}
-              {role === 'resident' && (
-                <SelectField label="الشقة" name="apartment_id" disabled={!buildingId} placeholder="بدون شقة دلوقتي"
-                  options={freeApartments.map((a) => ({ value: a.id, label: `شقة ${a.unit_number}` }))} hint="لو اخترت شقة، الساكن هيتربط بيها على طول" />
+              {role === 'resident' && buildingId && (
+                <CheckGroup label="الشقق" name="apartment_ids" options={aptOptions(buildingId)}
+                  hint="اختار شقة أو أكتر — الساكن هيتربط بيها على طول. ممكن تسيبها فاضية." />
               )}
             </>
           ) },
-          { title: 'بيانات الدخول', content: (
+          { title: 'بيانات الدخول', hint: 'هيدخل باسم المستخدم أو البريد', content: (
             <>
               <Field label="اسم المستخدم" name="username" required pattern="[a-zA-Z0-9_.\-]{3,32}"
                 data-pattern-message="من 3 لـ 32 حرف: حروف إنجليزي وأرقام و . _ -" dir="ltr" autoComplete="off" />
@@ -135,6 +162,21 @@ export default function Users({ data, me, scoped, act }) {
             </>
           ) },
         ]}
+      />
+
+      <FormDialog
+        open={!!linking} onClose={() => setLinking(null)} title="ربط بشقق" subtitle={linking && personName(linking)}
+        submitLabel="ربط" error={error} busy={busy} onSubmit={linkMore}
+        steps={[{ content: linking && (
+          <>
+            {manageable.length > 1 && (
+              <SelectField full label="العمارة" name="building" value={linkBuilding} onChange={(e) => setLinkBuilding(e.target.value)}
+                options={manageable.map((b) => ({ value: b.id, label: b.name }))} />
+            )}
+            <CheckGroup key={linkBuilding} label="الشقق" name="apartment_ids" options={aptOptions(linkBuilding, linking.id)}
+              hint="نفس الشخص ممكن يتربط بأكتر من شقة (مثلاً مالك لشقتين)." />
+          </>
+        ) }]}
       />
 
       <ConfirmDialog open={!!confirm} title={confirm?.title} tone="danger" confirmLabel="تأكيد" onCancel={() => setConfirm(null)} onConfirm={doConfirm}

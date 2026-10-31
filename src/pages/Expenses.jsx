@@ -13,7 +13,8 @@ export default function Expenses({ data, me, scoped, act }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const mine = data.buildings.filter((b) => me.canManage(b.id) && scoped.ids.has(b.id));
-  const rows = data.expenses.filter((x) => scoped.has(x) && (tab === 'all' || x.status === tab));
+  const readOnly = !me.isAdmin; // residents see approved expenses of their building
+  const rows = data.expenses.filter((x) => scoped.has(x) && (readOnly ? x.status === 'approved' : tab === 'all' || x.status === tab));
   const pendingCount = data.expenses.filter((x) => scoped.has(x) && x.status === 'pending').length;
   const bName = (id) => data.buildings.find((b) => b.id === id)?.name;
 
@@ -32,16 +33,16 @@ export default function Expenses({ data, me, scoped, act }) {
     <>
       <PageHead
         title="المصروفات"
-        subtitle="المصروف بيتخصم من الخزنة بعد اعتماد المالك"
-        action={<button className="primary" onClick={() => { setError(''); setOpen(true); }}>＋ تسجيل مصروف</button>}
+        subtitle={readOnly ? 'المصروفات المعتمدة للعمارة' : 'المصروف بيتخصم من الخزنة بعد اعتماد المالك'}
+        action={!readOnly && <button className="primary" onClick={() => { setError(''); setOpen(true); }}>＋ تسجيل مصروف</button>}
       />
-      <div className="tabs" role="tablist">
+      {!readOnly && <div className="tabs" role="tablist">
         {TABS.map(([k, l]) => (
           <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>
             {l}{k === 'pending' && pendingCount > 0 && <span className="badge">{pendingCount}</span>}
           </button>
         ))}
-      </div>
+      </div>}
       <Panel>
         <Table
           empty={tab === 'pending' ? 'مفيش مصروفات مستنية الاعتماد' : 'مفيش مصروفات'}
@@ -63,7 +64,7 @@ export default function Expenses({ data, me, scoped, act }) {
       <FormDialog
         open={open} onClose={() => setOpen(false)} title="تسجيل مصروف" submitLabel="تسجيل المصروف" error={error} busy={busy} onSubmit={add}
         steps={[
-          { title: 'المصروف', content: (
+          { title: 'المصروف', hint: 'اتصرف على إيه وفي أنهي عمارة؟', content: (
             <>
               <SelectField full label="العمارة" name="building_id" required
                 defaultValue={mine.length === 1 ? mine[0].id : ''} placeholder={mine.length === 1 ? undefined : 'اختار العمارة'}
@@ -72,9 +73,9 @@ export default function Expenses({ data, me, scoped, act }) {
               <SelectField label="التصنيف" name="category" required options={CATEGORIES.map((c) => ({ value: c, label: c }))} />
             </>
           ) },
-          { title: 'المبلغ والتاريخ', content: (
+          { title: 'المبلغ والتاريخ', hint: 'المبلغ هيتخصم من الخزنة بعد الاعتماد', content: (
             <>
-              <Field label="المبلغ" name="amount" type="number" required min="1" step="0.01" inputMode="decimal" />
+              <Field label="المبلغ" name="amount" type="number" required min="1" step="0.01" inputMode="decimal" data-money />
               <Field label="التاريخ" name="expense_date" type="date" required defaultValue={today()} />
               <Field full label="اتدفع لمين (اختياري)" name="vendor" placeholder="الشركة أو الشخص" />
             </>

@@ -124,17 +124,21 @@ function validate(el) {
   return '';
 }
 
-function describe(form) {
-  // Label/value pairs for the review step, read from the live form.
-  const out = [];
-  form.querySelectorAll('[data-label]').forEach((el) => {
-    if (el.closest('[data-no-review]') || el.disabled) return;
-    let value = el.value;
-    if (el.tagName === 'SELECT') value = el.selectedOptions[0]?.textContent || '';
-    if (el.type === 'password') value = value ? '••••••••' : '';
-    out.push({ label: el.dataset.label, value: value || '—' });
+// Label/value pairs for the review step, read from the live form, grouped by step.
+function describe(form, steps) {
+  return steps.map((s, i) => {
+    const items = [];
+    form.querySelectorAll(`[data-step="${i}"] [data-label]`).forEach((el) => {
+      if (el.closest('[data-no-review]') || el.disabled) return;
+      let value = el.value;
+      if (el.tagName === 'SELECT') value = el.selectedOptions[0]?.textContent || '';
+      if (el.tagName === 'FIELDSET') value = [...el.querySelectorAll('input:checked')].map((c) => c.dataset.text).join('، ');
+      if (el.type === 'password') value = value ? '••••••••' : '';
+      if (el.type === 'number' && value && el.dataset.money !== undefined) value = Number(value).toLocaleString('en') + ' ج.م.';
+      items.push({ label: el.dataset.label, value: value || '—' });
+    });
+    return { title: s.title, items };
   });
-  return out;
 }
 
 export function FormDialog({ open, onClose, title, subtitle, steps, submitLabel, onSubmit, error, busy }) {
@@ -176,7 +180,7 @@ export function FormDialog({ open, onClose, title, subtitle, steps, submitLabel,
 
   function next() {
     if (!checkStep(step)) return;
-    if (step + 1 === last) setReview(describe(formRef.current));
+    if (step + 1 === last) setReview(describe(formRef.current, steps));
     setStep(step + 1);
   }
 
@@ -193,23 +197,33 @@ export function FormDialog({ open, onClose, title, subtitle, steps, submitLabel,
       <Dialog open={open && !askDiscard} onClose={requestClose} title={title} subtitle={subtitle}>
         <form ref={formRef} onSubmit={submit} onInput={() => setDirty(true)} noValidate>
           {wizard && (
-            <ol className="stepper">
-              {[...steps.map((s) => s.title), 'مراجعة'].map((t, i) => (
-                <li key={t} className={i === step ? 'current' : i < step ? 'done' : ''}>
-                  <b>{i < step ? '✓' : i + 1}</b><span>{t}</span>
+            <ol className="stepper" aria-label={`الخطوة ${step + 1} من ${steps.length + 1}`}>
+              {[...steps.map((s) => s.title), 'مراجعة وحفظ'].map((t, i) => (
+                <li key={t} className={i === step ? 'current' : i < step ? 'done' : ''} aria-current={i === step ? 'step' : undefined}>
+                  <b>{i < step ? '✓' : i + 1}</b>
+                  <span><small>الخطوة {i + 1}</small>{t}</span>
                 </li>
               ))}
             </ol>
           )}
           <FieldErrors.Provider value={errors}>
             {steps.map((s, i) => (
-              <div key={i} data-step={i} className="form-grid" hidden={wizard && i !== step}>{s.content}</div>
+              <div key={i} data-step={i} className={'step-body' + (wizard ? ' card' : '')} hidden={wizard && i !== step}>
+                {wizard && s.hint && <p className="step-hint">{s.hint}</p>}
+                <div className="form-grid">{s.content}</div>
+              </div>
             ))}
           </FieldErrors.Provider>
           {onReview && (
-            <dl className="review">
-              {review.map((r) => <div key={r.label}><dt>{r.label}</dt><dd>{r.value}</dd></div>)}
-            </dl>
+            <div className="review-groups">
+              <p className="step-hint">راجع البيانات قبل الحفظ. تقدر ترجع لأي خطوة وتعدّلها.</p>
+              {review.map((g, i) => (
+                <section key={g.title} className="review-card">
+                  <header><h4>{g.title}</h4><button type="button" className="text-btn" onClick={() => setStep(i)}>تعديل</button></header>
+                  <dl>{g.items.map((r) => <div key={r.label}><dt>{r.label}</dt><dd>{r.value}</dd></div>)}</dl>
+                </section>
+              ))}
+            </div>
           )}
           {error && <div className="notice error" role="alert">{error}</div>}
           <div className="dialog-actions">
@@ -260,5 +274,26 @@ export function SelectField({ label, name, options, hint, full, placeholder, ...
       </select>
       {err ? <small className="field-error">{err}</small> : hint && <small>{hint}</small>}
     </label>
+  );
+}
+
+// Several checkboxes under one label (e.g. the apartments of one user).
+export function CheckGroup({ label, name, options, hint, empty = 'لا توجد اختيارات', full = true, defaultChecked = [] }) {
+  return (
+    <fieldset className={'field check-group' + (full ? ' full' : '')} data-label={label}>
+      <span>{label}</span>
+      {options.length ? (
+        <div className="check-grid">
+          {options.map((o) => (
+            <label key={o.value} className={'check-tile' + (o.disabled ? ' disabled' : '')}>
+              <input type="checkbox" name={name} value={o.value} data-text={o.label} disabled={o.disabled} defaultChecked={defaultChecked.includes(o.value)} />
+              <span>{o.label}</span>
+              {o.note && <small>{o.note}</small>}
+            </label>
+          ))}
+        </div>
+      ) : <small>{empty}</small>}
+      {hint && <small>{hint}</small>}
+    </fieldset>
   );
 }

@@ -115,16 +115,59 @@ button{font-family:'Cairo',sans-serif}
 .field input:disabled,.field select:disabled{opacity:.55;cursor:not-allowed}
 .field small{font-size:12px;color:#7b8899}
 .field.invalid input,.field.invalid select{border-color:var(--bad)!important;background:#fff8f7}
-.stepper{list-style:none;padding:0;margin:0 0 20px;display:flex;gap:6px;counter-reset:s}
-.stepper li{flex:1;display:flex;align-items:center;gap:8px;font-size:13px;color:#8a97a8;padding-top:10px;border-top:3px solid #e6ebf2}
-.stepper li b{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:#eef2f7;font-size:12px;flex-shrink:0}
-.stepper li.current{color:#1d3d63;font-weight:800;border-top-color:#315f9b}
-.stepper li.current b,.stepper li.done b{background:#315f9b;color:#fff}
-.stepper li.done{border-top-color:#315f9b;color:#315f9b}
-.review{display:grid;gap:0;margin:0;border:1px solid #e8edf4;border-radius:12px;overflow:hidden}
-.review div{display:grid;grid-template-columns:150px 1fr;gap:12px;padding:11px 14px;border-bottom:1px solid #eef1f5}
-.review div:last-child{border-bottom:0}
-.review dt{color:#6f7f94;font-size:13px}.review dd{margin:0;font-weight:700;font-size:14px;color:#1c3150}
+/* wizard: step cards, body card, grouped review */
+.stepper{list-style:none;padding:0;margin:0 0 16px;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px}
+.stepper li{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e6ebf2;border-radius:12px;background:#fff;color:#8a97a8;font-size:13px;font-weight:700;min-width:0}
+.stepper li span{display:flex;flex-direction:column;line-height:1.35;min-width:0}
+.stepper li span small{font-size:11px;font-weight:600;color:#9aa6b6}
+.stepper li b{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:#eef2f7;color:#6f7f94;font-size:13px;flex-shrink:0}
+.stepper li.current{border-color:#315f9b;background:#f2f7fd;color:#1d3d63;box-shadow:0 0 0 3px #315f9b14}
+.stepper li.current b{background:#315f9b;color:#fff}
+.stepper li.done{color:#1f8a63;border-color:#cdebdc}
+.stepper li.done b{background:var(--ok-bg);color:var(--ok)}
+.step-body.card{background:#f8fafd;border:1px solid #edf1f6;border-radius:14px;padding:14px 16px 6px}
+.step-body[hidden]{display:none}
+.step-hint{margin:0 0 6px;font-size:13px;color:#6f7f94}
+.review-groups{display:grid;gap:12px}
+.review-card{border:1px solid #e6ebf2;border-radius:14px;overflow:hidden;background:#fff}
+.review-card header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#f8fafd;border-bottom:1px solid #edf1f6}
+.review-card h4{margin:0;font-size:14px;color:#1d3d63}
+.review-card dl{margin:0}
+.review-card dl div{display:grid;grid-template-columns:150px 1fr;gap:12px;padding:10px 14px;border-bottom:1px solid #f0f3f7}
+.review-card dl div:last-child{border-bottom:0}
+.review-card dt{color:#6f7f94;font-size:13px}.review-card dd{margin:0;font-weight:700;font-size:14px;color:#1c3150}
+/* multi-select tiles */
+.check-group{border:0;padding:0;min-width:0}
+.check-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.check-tile{display:flex;align-items:center;gap:8px;border:1px solid #e0e7f0;border-radius:10px;padding:9px 11px;background:#fff;cursor:pointer;font-size:13px;flex-wrap:wrap}
+.check-tile:has(input:checked){border-color:#315f9b;background:#f2f7fd;color:#1d3d63;font-weight:700}
+.check-tile.disabled{opacity:.5;cursor:not-allowed}
+.check-tile small{width:100%;font-size:11px;color:#8a97a8}
+.check-tile input{width:18px!important;height:18px!important;margin:0;padding:0;flex-shrink:0;accent-color:#315f9b;cursor:inherit}
+.apt-card .card-actions{margin-top:auto}
+
+/* apartment details */
+.dialog.wide{width:min(860px,100%)}
+.detail-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.detail-stats>div{border:1px solid #e6ebf2;border-radius:14px;padding:13px 15px;display:grid;gap:3px;background:#fff}
+.detail-stats small{font-size:12px;color:#6f7f94}
+.detail-stats strong{font-size:22px;color:#1c3150}
+.detail-stats span{font-size:12px;color:#7b8899}
+.detail-stats .bad{background:var(--bad-bg);border-color:#f5c6c2}.detail-stats .bad strong{color:var(--bad)}
+.detail-stats .good{background:var(--ok-bg);border-color:#cdebdc}.detail-stats .good strong{color:var(--ok)}
+.detail-people{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.detail-people>small{font-size:12px;color:#6f7f94;margin-left:6px}
+.detail-title{font-size:14px;margin:16px 0 8px;color:#1d3d63}
+.credit-note{background:var(--ok-bg);color:var(--ok);border-radius:10px;padding:8px 12px;font-size:13px}
+.card-actions{display:grid;grid-template-columns:1fr 1.4fr;gap:8px}
+.card-actions button{justify-content:center}
+.outline.small{padding:6px 11px;font-size:12px}
+.chip.add{border:1px dashed #a9bdd6;background:transparent;color:#315f9b;cursor:pointer;font:700 12px 'Cairo'}
+.chip.add:hover{background:#eef3f9}
+tr.inactive td{opacity:.55}
+.theme-dark .detail-stats>div{background:#1d2d42;border-color:#30445c}
+.theme-dark .detail-stats strong{color:#e7effa}
+@media(max-width:760px){.detail-stats{grid-template-columns:1fr}.row-actions{flex-wrap:wrap}}
 
 /* --- login --- */
 .center-screen{min-height:100vh;display:grid;place-items:center;padding:20px;background:#f3f6fb}
@@ -143,9 +186,12 @@ button{font-family:'Cairo',sans-serif}
 .theme-dark .facts div,.theme-dark .apt-balance,.theme-dark .chip,.theme-dark .icon-close,.theme-dark .menu-btn{background:#203249;color:#c6dbf3;border-color:#344a64}
 .theme-dark .tabs button{background:#172538;color:#c3d1e1;border-color:#30445c}
 .theme-dark .tabs button.active{background:#e7effa;color:#172538}
-.theme-dark .review,.theme-dark .review div,.theme-dark .dialog-actions{border-color:#2a3b50}
+.theme-dark .review-card,.theme-dark .review-card dl div,.theme-dark .review-card header,.theme-dark .dialog-actions,.theme-dark .step-body.card,.theme-dark .stepper li,.theme-dark .check-tile{border-color:#2a3b50}
+.theme-dark .review-card,.theme-dark .stepper li,.theme-dark .check-tile{background:#172538}
+.theme-dark .review-card header,.theme-dark .step-body.card,.theme-dark .stepper li.current,.theme-dark .check-tile:has(input:checked){background:#1d2d42}
+.theme-dark .review-card h4,.theme-dark .stepper li.current{color:#e7effa}
 .theme-dark .field>span,.theme-dark .confirm-text{color:#c3d1e1}
-.theme-dark .stepper li{border-top-color:#2b3d53}.theme-dark .stepper li b{background:#293c54;color:#c5d4e5}
+.theme-dark .stepper li b{background:#293c54;color:#c5d4e5}
 .theme-dark .meter{background:#2b3d53}
 .theme-dark .stat-big{background:linear-gradient(150deg,#22466f,#3a6fae)}
 
@@ -163,8 +209,9 @@ button{font-family:'Cairo',sans-serif}
   .dialog{padding:18px;border-radius:16px}
   .dialog-backdrop{align-items:end;padding:0}
   .dialog{width:100%;border-radius:18px 18px 0 0;max-height:92vh}
-  .stepper li span{display:none}.stepper li.current span{display:inline}
-  .review div{grid-template-columns:1fr;gap:2px}
+  .stepper{display:flex;gap:6px}.stepper li{flex:1;padding:8px;justify-content:center}.stepper li span{display:none}
+  .stepper li.current{flex:2}.stepper li.current span{display:flex}
+  .review-card dl div{grid-template-columns:1fr;gap:2px}
   td{font-size:13px;padding:11px 10px}
   .stat-big strong{font-size:28px}
 }

@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { PageHead, Panel, Table, StatusPill, Empty, FormDialog, SelectField } from '../components/ui';
-import { money, month, date, num, METHOD_LABEL } from '../lib/format';
-import { balanceOf } from '../lib/stats';
+import { money, month, date, months, METHOD_LABEL } from '../lib/format';
+import { balanceOf, feeOf } from '../lib/stats';
 import { supabase } from '../lib/supabase';
 import PaymentDialog from './PaymentDialog.jsx';
+import ApartmentDetails from './ApartmentDetails.jsx';
 
 // What a resident sees first: their apartment, what they owe, and their payments.
 export default function ResidentHome({ data, me, act }) {
   const [paying, setPaying] = useState(null);
+  const [details, setDetails] = useState(null);
   const [requesting, setRequesting] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -41,6 +43,8 @@ export default function ResidentHome({ data, me, act }) {
         {mine.map((a) => {
           const bal = balanceOf(data, a.id);
           const owes = Number(bal?.balance || 0) > 0;
+          const credit = Number(bal?.credit || 0);
+          const fee = Number(feeOf(data, a.building_id) || 0);
           return (
             <div key={a.id} className={'apt-card ' + (owes ? 'owes' : 'clear')}>
               <span className="muted-text">{bName(a.building_id)}</span>
@@ -48,9 +52,18 @@ export default function ResidentHome({ data, me, act }) {
               <div className="apt-balance">
                 <small>{owes ? 'المطلوب سداده' : 'مفيش مستحقات'}</small>
                 <strong>{money(bal?.balance || 0)}</strong>
-                {owes && <small>{num(bal.unpaid_months)} شهر غير مسدد</small>}
+                {owes && <small>متأخر {months(bal.unpaid_months)}</small>}
               </div>
-              <button className="primary full" onClick={() => setPaying(a)}>سجّل دفعة</button>
+              {credit > 0 && (
+                <div className="credit-note">
+                  دافع مقدم <b>{money(credit)}</b>
+                  {fee > 0 && Math.floor(credit / fee) > 0 && <> · يغطي {months(Math.floor(credit / fee))} قدام</>}
+                </div>
+              )}
+              <div className="card-actions">
+                <button className="outline" onClick={() => setDetails(a)}>التفاصيل</button>
+                <button className="primary" onClick={() => setPaying(a)}>{owes ? 'سجّل دفعة' : 'ادفع مقدم'}</button>
+              </div>
             </div>
           );
         })}
@@ -86,6 +99,9 @@ export default function ResidentHome({ data, me, act }) {
           ))} />
         </Panel>
       )}
+
+      <ApartmentDetails open={!!details} onClose={() => setDetails(null)} data={data} apartment={details}
+        onPay={() => { setPaying(details); setDetails(null); }} />
 
       <PaymentDialog open={!!paying} onClose={() => setPaying(null)} data={data} me={me} act={act} apartment={paying} />
 

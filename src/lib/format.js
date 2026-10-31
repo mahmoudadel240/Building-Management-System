@@ -36,3 +36,12 @@ export const ROLE_LABEL = {
 export const METHOD_LABEL = { cash: 'نقدي', bank: 'تحويل بنكي', instapay: 'إنستاباي', wallet: 'محفظة إلكترونية' };
 
 export const personName = (p) => p?.display_name || p?.username || (p?.email && !p.email.endsWith('@username.invalid') ? p.email : '') || 'مستخدم';
+
+// Arabic count of months: شهر / شهرين / 3 شهور / 11 شهر
+export const months = (n) => {
+  n = Number(n || 0);
+  if (n === 1) return 'شهر واحد';
+  if (n === 2) return 'شهرين';
+  if (n >= 3 && n <= 10) return `${n} شهور`;
+  return `${n} شهر`;
+};

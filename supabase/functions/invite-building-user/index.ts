@@ -27,10 +27,12 @@ Deno.serve(async (req) => {
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json({ error: "Invalid request" }, 400); }
-  const { username, email, password, building_id, apartment_id, member_role = "resident" } = body as {
+  const { username, email, password, building_id, apartment_id, apartment_ids, member_role = "resident" } = body as {
     username?: string; email?: string | null; password?: string | null; building_id?: string | null;
-    apartment_id?: string | null; member_role?: string;
+    apartment_id?: string | null; apartment_ids?: string[] | null; member_role?: string;
   };
+  // One resident can live in / own several apartments of the building.
+  const aptIds = [...new Set((Array.isArray(apartment_ids) ? apartment_ids : apartment_id ? [apartment_id] : []).filter(Boolean))];
 
   const clean = String(username || "").trim();
   if (!/^[a-zA-Z0-9_.-]{3,32}$/.test(clean)) {
@@ -52,12 +54,11 @@ Deno.serve(async (req) => {
     if (!m) return json({ error: "Not an approved admin of this building" }, 403);
   }
 
-  // A resident can be linked straight to their apartment (must be in the chosen building).
-  if (apartment_id) {
+  // A resident can be linked straight to their apartments (all in the chosen building).
+  if (aptIds.length) {
     if (member_role !== "resident") return json({ error: "الشقة تُربط بالساكن فقط" }, 400);
-    const { data: apt } = await admin.from("apartments").select("id")
-      .eq("id", apartment_id).eq("building_id", building_id).maybeSingle();
-    if (!apt) return json({ error: "الشقة لا تتبع هذه العمارة" }, 400);
+    const { data: apts } = await admin.from("apartments").select("id").in("id", aptIds).eq("building_id", building_id);
+    if ((apts || []).length !== aptIds.length) return json({ error: "الشقة لا تتبع هذه العمارة" }, 400);
   }
 
   const { data: existing } = await admin.from("profiles").select("id").ilike("username", clean).maybeSingle();
@@ -95,11 +96,12 @@ Deno.serve(async (req) => {
     if (error) { await admin.auth.admin.deleteUser(created.id); return json({ error: error.message }, 400); }
   }
 
-  if (apartment_id) {
-    const { error } = await admin.from("apartment_residents").insert({
-      apartment_id, user_id: created.id, requested_by: caller.id, status: "approved",
-      reviewed_by: caller.id, reviewed_at: new Date().toISOString(),
-    });
+  if (aptIds.length) {
+    const now = new Date().toISOString();
+    const { error } = await admin.from("apartment_residents").insert(aptIds.map((id) => ({
+      apartment_id: id, user_id: created.id, requested_by: caller.id, status: "approved",
+      reviewed_by: caller.id, reviewed_at: now,
+    })));
     if (error) {
       await admin.from("building_members").delete().eq("user_id", created.id);
       await admin.auth.admin.deleteUser(created.id);

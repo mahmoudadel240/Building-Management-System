@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FormDialog, Field, SelectField } from '../components/ui';
 import { money, METHOD_LABEL } from '../lib/format';
-import { balanceOf } from '../lib/stats';
+import { balanceOf, feeOf } from '../lib/stats';
 import { supabase } from '../lib/supabase';
 
 // Record a payment for an apartment. Residents only get their own apartments;
@@ -25,6 +25,8 @@ export default function PaymentDialog({ open, onClose, data, me, act, apartment 
   const apts = allowed.filter((a) => a.building_id === buildingId);
   const bal = balanceOf(data, apartmentId);
   const owed = Number(bal?.balance || 0);
+  const credit = Number(bal?.credit || 0);
+  const fee = Number(feeOf(data, buildingId) || 0);
 
   async function submit(fd) {
     setBusy(true);
@@ -51,9 +53,10 @@ export default function PaymentDialog({ open, onClose, data, me, act, apartment 
           <SelectField label="الشقة" name="apartment_id" required placeholder={buildingId ? 'اختار الشقة' : 'اختار العمارة الأول'} value={apartmentId}
             disabled={!buildingId} onChange={(e) => setApartmentId(e.target.value)}
             options={apts.map((a) => ({ value: a.id, label: `شقة ${a.unit_number}` }))}
-            hint={apartmentId ? (owed > 0 ? `عليها ${money(owed)}` : 'مفيش مستحقات عليها') : undefined} />
-          <Field label="المبلغ" name="amount" type="number" required min="1" step="0.01" key={apartmentId}
-            defaultValue={owed > 0 ? owed : ''} inputMode="decimal" />
+            hint={apartmentId ? (owed > 0 ? `عليها ${money(owed)}` : credit > 0 ? `دافعة مقدم ${money(credit)}` : 'مفيش مستحقات عليها') : undefined} />
+          <Field label="المبلغ" name="amount" type="number" required min="1" step="0.01" key={apartmentId} data-money
+            defaultValue={owed > 0 ? owed : fee || ''} inputMode="decimal"
+            hint={apartmentId && owed <= 0 ? 'أي مبلغ زيادة بيتسجل دفع مقدم ويتخصم من الشهور الجاية' : undefined} />
           <SelectField label="طريقة الدفع" name="method" required options={Object.entries(METHOD_LABEL).map(([value, label]) => ({ value, label }))} />
           <Field full label="رقم العملية (اختياري)" name="reference" hint="مثلاً رقم التحويل أو الإيصال" />
         </>

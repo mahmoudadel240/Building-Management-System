@@ -136,7 +136,7 @@ export default function App() {
 
   const nav = me.isAdmin
     ? ['home', 'buildings', 'apartments', 'payments', 'expenses', 'treasury', 'users', 'activity']
-    : ['home', 'payments'];
+    : ['home', 'payments', 'expenses', 'treasury'];
   const current = nav.includes(page) ? page : 'home';
   const props = { data, me, scoped, act, notify, load, setPage };
   const go = (p) => { setPage(p); setMenuOpen(false); window.scrollTo(0, 0); };

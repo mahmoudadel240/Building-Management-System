@@ -75,17 +75,17 @@ export default function Buildings({ data, me, scoped, act }) {
       <FormDialog
         open={adding} onClose={() => setAdding(false)} title="إضافة عمارة" submitLabel="حفظ العمارة" error={error} busy={busy} onSubmit={addBuilding}
         steps={[
-          { title: 'بيانات العمارة', content: (
+          { title: 'بيانات العمارة', hint: 'الشقق هتتعمل تلقائي بالأرقام', content: (
             <>
               <Field full label="اسم العمارة" name="name" required placeholder="مثلاً: عمارة النخيل" />
               <Field full label="العنوان" name="address" placeholder="الشارع والمنطقة" />
               <Field label="عدد الشقق" name="count" type="number" required min="1" max="500" hint="هتتعمل الشقق بالأرقام من 1" />
             </>
           ) },
-          { title: 'الاشتراك والخزنة', content: (
+          { title: 'الاشتراك والخزنة', hint: 'كل شقة هيتعملها مستحق بالمبلغ ده كل شهر', content: (
             <>
-              <Field label="الاشتراك الشهري للشقة" name="fee" type="number" required min="0" step="0.01" hint="بالجنيه" />
-              <Field label="رصيد الخزنة الحالي" name="opening" type="number" min="0" step="0.01" defaultValue="0" hint="لو فيه فلوس موجودة قبل استخدام النظام" />
+              <Field label="الاشتراك الشهري للشقة" name="fee" type="number" required min="0" step="0.01" hint="بالجنيه" data-money />
+              <Field label="رصيد الخزنة الحالي" name="opening" type="number" min="0" step="0.01" defaultValue="0" hint="لو فيه فلوس موجودة قبل استخدام النظام" data-money />
             </>
           ) },
         ]}

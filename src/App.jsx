@@ -1,98 +1,206 @@
-import React,{createContext,useCallback,useContext,useEffect,useMemo,useState} from 'react';
-const ErrorContext=createContext('');
-import {supabase} from './lib/supabase';
-const money=n=>new Intl.NumberFormat('ar-EG',{style:'currency',currency:'EGP',maximumFractionDigits:2}).format(Number(n||0));
-const date=()=>new Date().toISOString().slice(0,10);
-const titles={overview:'الرئيسية',buildings:'العمارات',apartments:'الشقق والسكان',payments:'التحصيلات',expenses:'المصروفات',treasury:'الخزنة',users:'إدارة المستخدمين'};
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { supabase } from './lib/supabase';
+import { ROLE_LABEL, personName } from './lib/format';
+import { errorText } from './lib/errors';
+import Login from './pages/Login.jsx';
+import Overview from './pages/Overview.jsx';
+import ResidentHome from './pages/ResidentHome.jsx';
+import Buildings from './pages/Buildings.jsx';
+import Apartments from './pages/Apartments.jsx';
+import Payments from './pages/Payments.jsx';
+import Expenses from './pages/Expenses.jsx';
+import Treasury from './pages/Treasury.jsx';
+import Users from './pages/Users.jsx';
+import Activity from './pages/Activity.jsx';
 
-function WizardForm({children,...props}){
- const [step,setStep]=useState(0),[open,setOpen]=useState(false);const formError=useContext(ErrorContext);
- const items=React.Children.toArray(children),fields=items.filter(x=>x.type!=='button'),actions=items.filter(x=>x.type==='button');
- const steps=Array.from({length:Math.max(1,Math.ceil(fields.length/3))},(_,i)=>fields.slice(i*3,(i+1)*3));
- const review=step===steps.length;
- return <><button type="button" className="wizard-launch" onClick={()=>{setStep(0);setOpen(true)}}><span>＋</span> إضافة جديد</button>
- {open&&<div className="wizard-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setOpen(false)}}><section className="wizard-dialog" role="dialog" aria-modal="true">
- <header className="wizard-dialog-head"><div><small>معالج الإضافة</small><h3>إضافة بيانات جديدة</h3><p>اتبع الخطوات لإكمال البيانات بسهولة</p></div><button type="button" className="wizard-close" onClick={()=>setOpen(false)} aria-label="إغلاق">×</button></header>
- <form {...props} onSubmit={async e=>{const ok=await props.onSubmit?.(e);if(ok!==false)setOpen(false)}} className={['wizard-form',props.className||''].join(' ')}>
- <div className="wizard-progress"><div className="wizard-track"><i style={{width:(((step+1)/(steps.length+1))*100)+'%'}}/></div><div className="wizard-steps">{steps.map((_,i)=><span key={i} className={step===i?'current':step>i?'done':''}><b>{i+1}</b><small>الخطوة {i+1}</small></span>)}<span className={review?'current':''}><b>✓</b><small>مراجعة</small></span></div></div>
- <div className="wizard-fields">{review?fields:steps[step]}</div>{formError&&<div className="notice" role="alert">{formError}</div>}
- <div className="wizard-controls"><button type="button" className="outline" disabled={step===0} onClick={()=>setStep(v=>Math.max(0,v-1))}>السابق</button>
- {review?<>{actions}<button type="button" className="outline" onClick={()=>setOpen(false)}>إلغاء</button></>:<button type="button" className="primary" onClick={e=>{const inputs=[...e.currentTarget.closest('form').querySelectorAll('.wizard-fields input,.wizard-fields select,.wizard-fields textarea')];if(inputs.every(x=>!x.required||x.checkValidity()))setStep(v=>v+1);else inputs.find(x=>x.required&&!x.checkValidity())?.reportValidity()}}>التالي ←</button>}</div>
- </form></section></div>}</>;
+const EMPTY = {
+  profiles: [], buildings: [], members: [], apartments: [], links: [], payments: [], expenses: [],
+  dues: [], balances: [], accounts: [], transactions: [], subscriptions: [], audit: [],
+};
+
+const PAGES = {
+  home: { title: 'الرئيسية', icon: 'M3 11l9-8 9 8M5 10v10h14V10' },
+  buildings: { title: 'العمارات', icon: 'M4 21V5l8-3 8 3v16M9 9h1M14 9h1M9 13h1M14 13h1M10 21v-4h4v4' },
+  apartments: { title: 'الشقق والسكان', icon: 'M3 21h18M5 21V8h14v13M9 12h2M13 12h2M9 16h2M13 16h2' },
+  payments: { title: 'التحصيلات', icon: 'M3 7h18v10H3zM7 12h.01M17 12h.01M12 10a2 2 0 100 4 2 2 0 000-4' },
+  expenses: { title: 'المصروفات', icon: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6' },
+  treasury: { title: 'الخزنة', icon: 'M4 7h16v12H4zM4 11h16M16 15h1' },
+  users: { title: 'المستخدمين', icon: 'M16 20v-1a4 4 0 00-8 0v1M12 11a3 3 0 100-6 3 3 0 000 6M20 20v-1a3 3 0 00-3-3M4 20v-1a3 3 0 013-3' },
+  activity: { title: 'سجل النشاط', icon: 'M12 8v4l3 2M12 3a9 9 0 100 18 9 9 0 000-18' },
+};
+
+function Icon({ d }) {
+  return <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>;
 }
 
-export default function App(){
- const [session,setSession]=useState(null),[profile,setProfile]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[busy,setBusy]=useState(false);
- const [page,setPage]=useState('overview'),[buildings,setBuildings]=useState([]),[members,setMembers]=useState([]),[apartments,setApartments]=useState([]),[links,setLinks]=useState([]),[payments,setPayments]=useState([]),[expenses,setExpenses]=useState([]),[dues,setDues]=useState([]),[accounts,setAccounts]=useState([]),[transactions,setTransactions]=useState([]),[subscriptions,setSubscriptions]=useState([]);
- const [email,setEmail]=useState(''),[username,setUsername]=useState(''),[password,setPassword]=useState('');
- const [buildingId,setBuildingId]=useState('all'),[message,setMessage]=useState('');
- const [theme,setTheme]=useState(()=>localStorage.getItem('bms-theme')||'light');
- useEffect(()=>{localStorage.setItem('bms-theme',theme)},[theme]);
- const role=profile?.role||'resident',isOwner=['owner','superuser'].includes(role),isAdmin=['owner','superuser','admin'].includes(role);
- const notify=t=>{setMessage(t);setTimeout(()=>setMessage(''),3500)};
- const load=useCallback(async()=>{
-  if(!session?.user)return;
-  setBusy(true);setError('');
-  try{
-   const p=await supabase.from('profiles').select('*').eq('id',session.user.id).single(); if(p.error)throw p.error;setProfile(p.data);
-   const queries=await Promise.all([
-    supabase.from('buildings').select('*').order('created_at',{ascending:false}),
-    supabase.from('building_members').select('*').eq('user_id',session.user.id),
-    supabase.from('apartments').select('*').order('unit_number'),
-    supabase.from('apartment_residents').select('*').order('created_at',{ascending:false}),
-    supabase.from('payments').select('*').order('created_at',{ascending:false}),
-    supabase.from('expenses').select('*').order('created_at',{ascending:false}),
-    supabase.from('monthly_dues').select('*').order('period_month',{ascending:false}),
-    supabase.from('treasury_accounts').select('*'),
-    supabase.from('treasury_transactions').select('*').order('created_at',{ascending:false}),
-    supabase.from('subscription_settings').select('*')
-   ]);
-   const labels=['العمارات','عضوياتك','الشقق','طلبات ربط السكان','التحصيلات','المصروفات','المستحقات','حسابات الخزنة','حركات الخزنة','الاشتراكات'];
-   for(let i=0;i<queries.length;i++)if(queries[i].error && !['عضوياتك'].includes(labels[i]))throw new Error(labels[i]+': '+queries[i].error.message);
-   const vals=queries.map(x=>x.data||[]);
-   setBuildings(vals[0]);setMembers(vals[1]);setApartments(vals[2]);setLinks(vals[3]);setPayments(vals[4]);setExpenses(vals[5]);setDues(vals[6]);setAccounts(vals[7]);setTransactions(vals[8]);setSubscriptions(vals[9]);
-  }catch(e){setError(e.message||'تعذر تحميل البيانات')}finally{setBusy(false)}
- },[session]);
- useEffect(()=>{if(!supabase){setLoading(false);return}let alive=true;supabase.auth.getSession().then(({data,error})=>{if(!alive)return;if(error)setError(error.message);setSession(data.session);setLoading(false)});const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,s)=>setSession(s));return()=>{alive=false;subscription.unsubscribe()}},[]);
- useEffect(()=>{if(session)load();else{setProfile(null);setBuildings([]);setApartments([])}},[session,load]);
- const visibleBuildings=buildings.filter(b=>buildingId==='all'||b.id===buildingId);
- const visibleIds=visibleBuildings.map(b=>b.id);
- const rowsByBuilding=arr=>arr.filter(x=>visibleIds.includes(x.building_id));
- const incoming=rowsByBuilding(payments).filter(x=>x.status==='approved').reduce((s,x)=>s+Number(x.amount),0);
- const outgoing=rowsByBuilding(expenses).filter(x=>x.status==='approved').reduce((s,x)=>s+Number(x.amount),0);
- const balance=rowsByBuilding(accounts).reduce((s,x)=>s+Number(x.opening_balance||0),0)+rowsByBuilding(transactions).reduce((s,x)=>s+(x.direction==='in'?1:-1)*Number(x.amount),0);
- const pending=rowsByBuilding(payments).filter(x=>x.status==='pending').length+rowsByBuilding(expenses).filter(x=>x.status==='pending').length;
- const apartmentMap=useMemo(()=>Object.fromEntries(apartments.map(a=>[a.id,a])),[apartments]);
- const buildingMap=useMemo(()=>Object.fromEntries(buildings.map(b=>[b.id,b])),[buildings]);
- async function signIn(e){e.preventDefault();setBusy(true);setError('');try{const {data,error}=await supabase.functions.invoke('login-with-username',{body:{identifier:username.trim(),password}});if(error)throw error;if(data?.error)throw new Error(data.error);if(data?.session){const {error:setErrorSession}=await supabase.auth.setSession(data.session);if(setErrorSession)throw setErrorSession}else throw new Error('تعذر تسجيل الدخول')}catch(e){setError(e.message||'بيانات الدخول غير صحيحة')}finally{setBusy(false)}}
+export default function App() {
+  const [session, setSession] = useState(null);
+  const [checking, setChecking] = useState(true);
+  const [data, setData] = useState(EMPTY);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [page, setPage] = useState('home');
+  const [buildingId, setBuildingId] = useState('all');
+  const [toast, setToast] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [theme, setTheme] = useState(() => { try { return localStorage.getItem('bms-theme') || 'light'; } catch { return 'light'; } });
+  useEffect(() => { try { localStorage.setItem('bms-theme', theme); } catch { /* storage unavailable */ } }, [theme]);
 
- async function signOut(){await supabase.auth.signOut();setPage('overview')}
- async function run(action){setBusy(true);setError('');try{await action();await load();return true}catch(e){setError(e.message||'حدث خطأ');return false}finally{setBusy(false)}}
- async function addBuilding(e){e.preventDefault();const form=e.currentTarget,f=new FormData(form);const ok=await run(async()=>{const {data:b,error}=await supabase.from('buildings').insert({name:f.get('name'),address:f.get('address'),apartment_count:Number(f.get('count')),created_by:session.user.id}).select().single();if(error)throw error;const fee=Number(f.get('fee'));const [s,t]=await Promise.all([supabase.from('subscription_settings').insert({building_id:b.id,monthly_amount:fee,updated_by:session.user.id}),supabase.from('treasury_accounts').insert({building_id:b.id,name:'الخزنة الرئيسية',opening_balance:0})]);if(s.error)throw s.error;if(t.error)throw t.error;const units=Array.from({length:Number(f.get('count'))},(_,i)=>({building_id:b.id,unit_number:String(i+1)}));if(units.length){const a=await supabase.from('apartments').insert(units);if(a.error)throw a.error}});if(ok){form.reset();notify('تم إنشاء العمارة والشقق وإعداد الخزنة')}return ok}
- async function addApartment(e){e.preventDefault();const form=e.currentTarget,f=new FormData(form);const ok=await run(async()=>{const {error}=await supabase.from('apartments').insert({building_id:f.get('building_id'),unit_number:f.get('unit_number'),floor_label:f.get('floor_label')||null});if(error)throw error});if(ok){form.reset();notify('تمت إضافة الشقة')}return ok}
- async function addPayment(e){e.preventDefault();const form=e.currentTarget,f=new FormData(form);const ok=await run(async()=>{const {error}=await supabase.from('payments').insert({building_id:f.get('building_id'),apartment_id:f.get('apartment_id'),amount:Number(f.get('amount')),payment_method:f.get('method'),reference:f.get('reference')||null,notes:f.get('notes')||'',submitted_by:session.user.id,status:'pending'});if(error)throw error});if(ok){form.reset();notify('سُجل التحصيل كمعلّق ولم يدخل الخزنة')}return ok}
- async function addExpense(e){e.preventDefault();const form=e.currentTarget,f=new FormData(form);const ok=await run(async()=>{const {error}=await supabase.from('expenses').insert({building_id:f.get('building_id'),title:f.get('title'),category:f.get('category'),amount:Number(f.get('amount')),expense_date:f.get('expense_date'),vendor:f.get('vendor')||null,notes:f.get('notes')||'',submitted_by:session.user.id,status:'pending'});if(error)throw error});if(ok){form.reset();notify('سُجل المصروف كمعلّق ولم يخصم من الخزنة')}return ok}
- async function approve(kind,id){const ok=await run(async()=>{const {error}=await supabase.rpc(kind==='payment'?'approve_payment':'approve_expense',{p:id});if(error)throw error});if(ok)notify('تم الاعتماد وترحيل العملية للخزنة في معاملة واحدة')}
- async function requestApartment(e){e.preventDefault();const f=new FormData(e.currentTarget);const ok=await run(async()=>{const {error}=await supabase.from('apartment_residents').insert({apartment_id:f.get('apartment_id'),user_id:session.user.id,requested_by:session.user.id,status:'pending'});if(error)throw error});if(ok)notify('تم إرسال طلب ربط الشقة للمراجعة');return ok}
- async function reviewLink(id,status){const ok=await run(async()=>{const {error}=await supabase.from('apartment_residents').update({status,reviewed_by:session.user.id,reviewed_at:new Date().toISOString()}).eq('id',id);if(error)throw error});if(ok)notify(status==='approved'?'تم اعتماد ربط الساكن':'تم رفض الطلب')}
- if(!supabase)return <main className="content"><h2>إعداد الاتصال مطلوب</h2><p>أضف VITE_SUPABASE_URL وVITE_SUPABASE_PUBLISHABLE_KEY في إعدادات Vercel.</p></main>;
- if(loading)return <main className="content">جارٍ التحقق من الجلسة…</main>;
- if(!session)return <main className="content" style={{maxWidth:480,margin:'8vh auto'}}><div className="panel"><h1>إدارة العمارات</h1><p>سجّل الدخول باسم المستخدم أو البريد الإلكتروني.</p><form onSubmit={signIn} className="grid-form"><label className="field"><span>اسم المستخدم أو البريد الإلكتروني</span><input required autoComplete="username" value={username} onChange={e=>setUsername(e.target.value)}/></label><label className="field"><span>كلمة المرور</span><input type="password" required minLength="8" value={password} onChange={e=>setPassword(e.target.value)}/></label><button className="primary" disabled={busy}>تسجيل الدخول</button></form><button type="button" className="outline full" disabled={busy} onClick={async()=>{setError('');const {data,error}=await supabase.functions.invoke('request-password-reset',{body:{identifier:username.trim()}});if(error)setError(error.message);else if(data?.error)setError(data.error);else notify(data?.message||'لو الحساب مرتبط ببريد إلكتروني، هيوصله رابط إعادة التعيين')}}>نسيت كلمة المرور؟ إرسال رابط إعادة التعيين</button>{error&&<p role="alert">{error}</p>}{message&&<p>{message}</p>}</div></main>;
- const nav=['overview','buildings','apartments','payments','expenses','treasury','users'];
- const scopedPayments=rowsByBuilding(payments),scopedExpenses=rowsByBuilding(expenses);
- const field=(label,name,type='text',required=true,extra={})=><label className="field" key={name}><span>{label}</span><input name={name} type={type} required={required} {...extra}/></label>;
- const buildingSelect=<label className="field"><span>العمارة</span><select name="building_id" required>{visibleBuildings.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>;
- const apartmentSelect=<label className="field"><span>الشقة</span><select name="apartment_id" required>{apartments.filter(a=>visibleIds.includes(a.building_id)).map(a=><option key={a.id} value={a.id}>{buildingMap[a.building_id]?.name} – {a.unit_number}</option>)}</select></label>;
- const stat=(label,value)=><div className="stat"><div className="stat-top"><span>{label}</span></div><strong>{value}</strong></div>;
- const table=(headers,body)=><div className="table-scroll"><table><thead><tr>{headers.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{body}</tbody></table></div>;
- return <ErrorContext.Provider value={error}><div className={"app theme-"+theme} dir="rtl"><aside className="sidebar"><div className="brand"><div className="brand-mark">B</div><div><b>إدارة العمارات</b><small>BUILDING MANAGEMENT</small></div></div><div className="workspace"><div className="avatar">{(profile?.display_name||session.user.email||'U').slice(0,1).toUpperCase()}</div><div><b>{profile?.display_name||session.user.email}</b><small>{role==='owner'?'مالك النظام':role==='superuser'?'مدير أعلى':role==='admin'?'مدير عمارة':'ساكن'}</small></div></div><nav>{nav.filter(n=>!['buildings','expenses','treasury'].includes(n)||isAdmin).filter(n=>n!=='users'||role!=='resident').map(n=><button key={n} className={page===n?'active':''} onClick={()=>setPage(n)}>{titles[n]}</button>)}</nav><div className="sidebar-bottom"><button className="outline full" onClick={signOut}>تسجيل الخروج</button></div></aside><main className="main"><header className="topbar"><b>{titles[page]}</b><div className="top-actions"><button type="button" className="theme-toggle" onClick={()=>setTheme(t=>t==="light"?"dark":"light")} title="تغيير المظهر">{theme==="light"?"☾":"☀"}</button><label className="building-filter"><span>عرض</span><select value={buildingId} onChange={e=>setBuildingId(e.target.value)}><option value="all">كل العمارات المتاحة</option>{buildings.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label><button className="refresh-btn" onClick={load} disabled={busy} title="تحديث البيانات" aria-label="تحديث البيانات"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.6-2L20 12M4 12l2.8 5a7 7 0 0 0 11.6-2"/></svg></button></div></header><section className="content"><div className="page-head"><div><h1>{titles[page]}</h1><p>البيانات محمّلة مباشرة من قاعدة البيانات بصلاحيات حسابك.</p></div></div>
- {error&&<div className="notice" role="alert">{error}</div>}{busy&&<p>جارٍ تنفيذ العملية…</p>}
- {page==='overview'&&<><div className="stats">{stat('العمارات المتاحة',visibleBuildings.length)}{stat('الشقق',apartments.filter(a=>visibleIds.includes(a.building_id)).length)}{stat('تحصيلات معتمدة',money(incoming))}{stat('مصروفات معتمدة',money(outgoing))}{stat('الرصيد بالخزنة',money(balance))}{stat('عمليات معلقة',pending)}</div><div className="panel"><h3>العمارات</h3>{table(['العمارة','العنوان','عدد الشقق','الاشتراك الشهري'],visibleBuildings.map(b=><tr key={b.id}><td>{b.name}</td><td>{b.address}</td><td>{b.apartment_count}</td><td>{money(subscriptions.find(s=>s.building_id===b.id)?.monthly_amount)}</td></tr>))}</div></>}
- {page==='buildings'&&<>{isOwner&&<div className="panel"><h3>إضافة عمارة</h3><WizardForm className="grid-form" onSubmit={addBuilding}>{field('اسم العمارة','name')}{field('العنوان','address')}{field('عدد الشقق','count','number',true,{min:1,max:500})}{field('الاشتراك الشهري','fee','number',true,{min:0,step:'0.01'})}<button className="primary" disabled={busy}>حفظ العمارة وإنشاء الشقق</button></WizardForm></div>}<div className="panel"><h3>العمارات</h3>{table(['الاسم','العنوان','عدد الشقق'],visibleBuildings.map(b=><tr key={b.id}><td>{b.name}</td><td>{b.address}</td><td>{b.apartment_count}</td></tr>))}</div></>}
- {page==='apartments'&&<><div className="panel"><h3>الشقق</h3>{isAdmin&&<WizardForm className="grid-form" onSubmit={addApartment}>{buildingSelect}{field('رقم الشقة','unit_number')}{field('الدور','floor_label','text',false)}<button className="primary">إضافة شقة</button></WizardForm>}{table(['العمارة','رقم الشقة','الدور'],apartments.filter(a=>visibleIds.includes(a.building_id)).map(a=><tr key={a.id}><td>{buildingMap[a.building_id]?.name}</td><td>{a.unit_number}</td><td>{a.floor_label||'—'}</td></tr>))}</div>{role==='resident'&&<div className="panel"><h3>طلب ربط شقتك</h3><WizardForm className="grid-form" onSubmit={requestApartment}>{apartmentSelect}<button className="primary">إرسال الطلب</button></WizardForm></div>}</>}
- {page==='payments'&&<><div className="panel"><h3>تسجيل تحصيل</h3><WizardForm className="grid-form" onSubmit={addPayment}>{buildingSelect}{apartmentSelect}{field('المبلغ','amount','number',true,{min:0.01,step:'0.01'})}<label className="field"><span>طريقة الدفع</span><select name="method"><option value="cash">نقدي</option><option value="bank">تحويل بنكي</option><option value="instapay">إنستاباي</option></select></label>{field('مرجع العملية','reference','text',false)}<button className="primary">إرسال للاعتماد</button></WizardForm></div><div className="panel"><h3>سجل التحصيلات</h3>{table(['العمارة','الشقة','المبلغ','الحالة','التاريخ','الإجراء'],scopedPayments.map(p=><tr key={p.id}><td>{buildingMap[p.building_id]?.name}</td><td>{apartmentMap[p.apartment_id]?.unit_number}</td><td>{money(p.amount)}</td><td>{p.status}</td><td>{new Date(p.created_at).toLocaleDateString('ar-EG')}</td><td>{isOwner&&p.status==='pending'?<button className="approve" onClick={()=>approve('payment',p.id)}>اعتماد</button>:'—'}</td></tr>))}</div></>}
- {page==='expenses'&&<><div className="panel"><h3>تسجيل مصروف</h3><WizardForm className="grid-form" onSubmit={addExpense}>{buildingSelect}{field('بيان المصروف','title')}{field('التصنيف','category')}{field('المبلغ','amount','number',true,{min:0.01,step:'0.01'})}{field('التاريخ','expense_date','date',true,{defaultValue:date()})}{field('المورد','vendor','text',false)}<button className="primary">إرسال للاعتماد</button></WizardForm></div><div className="panel"><h3>سجل المصروفات</h3>{table(['العمارة','البيان','المبلغ','الحالة','التاريخ','الإجراء'],scopedExpenses.map(x=><tr key={x.id}><td>{buildingMap[x.building_id]?.name}</td><td>{x.title}</td><td>{money(x.amount)}</td><td>{x.status}</td><td>{x.expense_date}</td><td>{isOwner&&x.status==='pending'?<button className="approve" onClick={()=>approve('expense',x.id)}>اعتماد</button>:'—'}</td></tr>))}</div></>}
- {page==='treasury'&&<div className="panel"><h3>الخزنة – الحركات المرحلة فقط</h3>{stat('الرصيد الحالي',money(balance))}{table(['العمارة','الاتجاه','المبلغ','البيان','التاريخ'],rowsByBuilding(transactions).map(t=><tr key={t.id}><td>{buildingMap[t.building_id]?.name}</td><td>{t.direction==='in'?'وارد':'منصرف'}</td><td>{money(t.amount)}</td><td>{t.description}</td><td>{new Date(t.created_at).toLocaleString('ar-EG')}</td></tr>))}</div>}
- {page==='users'&&<><div className="panel"><h3>إنشاء حساب مستخدم</h3><p>اسم المستخدم مطلوب. البريد اختياري لإرسال الدعوة أو إعادة تعيين كلمة المرور؛ من دون بريد يتم إنشاء الحساب بكلمة مرور تحددها.</p><WizardForm className="grid-form" onSubmit={async e=>{e.preventDefault();const form=e.currentTarget,f=new FormData(form);const ok=await run(async()=>{const {data,error}=await supabase.functions.invoke('invite-building-user',{body:{username:f.get('username'),email:f.get('email')||null,password:f.get('password')||null,building_id:f.get('building_id')||null,member_role:f.get('member_role')}});if(error)throw error;if(data?.error)throw new Error(data.error)});if(ok){form.reset();notify(f.get('email')?'تم إنشاء الحساب وإرسال دعوة البريد':'تم إنشاء الحساب')}return ok}}>{field('اسم المستخدم','username')}{field('البريد الإلكتروني (اختياري)','email','email',false)}{field('كلمة مرور مؤقتة (مطلوبة بدون بريد)','password','password',false,{minLength:8})}<label className="field"><span>العمارة</span><select name="building_id"><option value="">بدون عمارة (للمدير الأعلى فقط)</option>{visibleBuildings.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label><label className="field"><span>الدور</span><select name="member_role"><option value="resident">ساكن</option>{isOwner&&<option value="admin">مدير عمارة</option>}{role==='owner'&&<option value="superuser">Superuser – مدير أعلى</option>}</select></label><button className="primary">إنشاء الحساب / إرسال الدعوة</button></WizardForm></div><div className="panel"><h3>طلبات ربط السكان</h3>{table(['الشقة','المستخدم','الحالة','الإجراء'],links.filter(l=>l.status==='pending').map(l=><tr key={l.id}><td>{apartmentMap[l.apartment_id]?.unit_number||l.apartment_id}</td><td>{l.user_id}</td><td>{l.status}</td><td>{isAdmin?<><button className="approve" onClick={()=>reviewLink(l.id,'approved')}>موافقة</button> <button className="outline" onClick={()=>reviewLink(l.id,'rejected')}>رفض</button></>:'—'}</td></tr>))}</div></>}
- </section></main>{message&&<div className="toast">{message}</div>}</div></ErrorContext.Provider>;
+  const userId = session?.user?.id;
+
+  // ---------- session ----------
+  useEffect(() => {
+    if (!supabase) { setChecking(false); return; }
+    let alive = true;
+    supabase.auth.getSession().then(({ data }) => { if (alive) { setSession(data.session); setChecking(false); } });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => { alive = false; subscription.unsubscribe(); };
+  }, []);
+
+  // ---------- data ----------
+  const load = useCallback(async ({ generateDues = false } = {}) => {
+    if (!userId) return;
+    setLoading(true); setLoadError('');
+    try {
+      if (generateDues) await supabase.rpc('generate_monthly_dues'); // creates any missing months; harmless for residents
+      const q = (table, build = (x) => x) => build(supabase.from(table).select('*'));
+      const results = await Promise.all([
+        q('profiles'),
+        q('buildings', (x) => x.order('name')),
+        q('building_members'),
+        q('apartments', (x) => x.order('unit_number')),
+        q('apartment_residents', (x) => x.order('created_at', { ascending: false })),
+        q('payments', (x) => x.order('created_at', { ascending: false })),
+        q('expenses', (x) => x.order('created_at', { ascending: false })),
+        q('monthly_dues', (x) => x.order('period_month', { ascending: false })),
+        q('apartment_balances'),
+        q('treasury_accounts'),
+        q('treasury_transactions', (x) => x.order('created_at', { ascending: false })),
+        q('subscription_settings'),
+        q('audit_logs', (x) => x.order('created_at', { ascending: false }).limit(150)),
+      ]);
+      const failed = results.find((r) => r.error);
+      if (failed) throw failed.error;
+      const [profiles, buildings, members, apartments, links, payments, expenses, dues, balances, accounts, transactions, subscriptions, audit] = results.map((r) => r.data || []);
+      setData({ profiles, buildings, members, apartments, links, payments, expenses, dues, balances, accounts, transactions, subscriptions, audit });
+    } catch (e) {
+      setLoadError(e.message || 'تعذر تحميل البيانات');
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => { if (userId) load({ generateDues: true }); else setData(EMPTY); }, [userId, load]);
+
+  // ---------- who am I ----------
+  const me = useMemo(() => {
+    const profile = data.profiles.find((p) => p.id === userId);
+    const isOwner = ['owner', 'superuser'].includes(profile?.role);
+    const adminOf = data.members.filter((m) => m.user_id === userId && m.member_role === 'admin' && m.status === 'approved').map((m) => m.building_id);
+    const myApartments = data.links.filter((l) => l.user_id === userId && l.status === 'approved').map((l) => l.apartment_id);
+    const isAdmin = isOwner || adminOf.length > 0;
+    const role = isOwner ? profile.role : adminOf.length ? 'admin' : 'resident';
+    const canManage = (bid) => isOwner || adminOf.includes(bid);
+    return { id: userId, profile, isOwner, isAdmin, adminOf, myApartments, role, canManage };
+  }, [data, userId]);
+
+  // Buildings the current filter covers
+  const scoped = useMemo(() => {
+    const visible = data.buildings.filter((b) => buildingId === 'all' || b.id === buildingId);
+    const ids = new Set(visible.map((b) => b.id));
+    return { buildings: visible, ids, has: (row) => ids.has(row.building_id) };
+  }, [data.buildings, buildingId]);
+
+  const notify = (t) => { setToast(t); setTimeout(() => setToast(''), 3500); };
+
+  // Runs a database action; returns '' on success or the error message.
+  const act = async (fn, successMessage) => {
+    try {
+      const res = await fn();
+      if (res?.error) throw res.error;
+      if (res?.data?.error) throw new Error(res.data.error);
+      await load();
+      if (successMessage) notify(successMessage);
+      return '';
+    } catch (e) {
+      return (await errorText(e)) || 'حدث خطأ';
+    }
+  };
+
+  // ---------- screens ----------
+  if (!supabase) {
+    return <main className="center-screen"><div className="panel narrow"><h1>إعداد الاتصال مطلوب</h1><p>أضف VITE_SUPABASE_URL وVITE_SUPABASE_PUBLISHABLE_KEY في إعدادات Vercel.</p></div></main>;
+  }
+  if (checking) return <main className="center-screen"><p>جارٍ التحقق من الجلسة…</p></main>;
+  if (!session) return <Login />;
+
+  const nav = me.isAdmin
+    ? ['home', 'buildings', 'apartments', 'payments', 'expenses', 'treasury', 'users', 'activity']
+    : ['home', 'payments'];
+  const current = nav.includes(page) ? page : 'home';
+  const props = { data, me, scoped, act, notify, load, setPage };
+  const go = (p) => { setPage(p); setMenuOpen(false); window.scrollTo(0, 0); };
+
+  return (
+    <div className={'app theme-' + theme} dir="rtl">
+      <aside className={'sidebar' + (menuOpen ? ' show' : '')}>
+        <div className="brand">
+          <div className="brand-mark">B</div>
+          <div><b>إدارة العمارات</b><small>BUILDING MANAGEMENT</small></div>
+          <button type="button" className="mobile-close" onClick={() => setMenuOpen(false)} aria-label="إغلاق القائمة">×</button>
+        </div>
+        <div className="workspace">
+          <div className="avatar">{personName(me.profile || session.user).slice(0, 1).toUpperCase()}</div>
+          <div><b>{personName(me.profile || session.user)}</b><small>{ROLE_LABEL[me.role]}</small></div>
+        </div>
+        <nav>
+          {nav.map((n) => (
+            <button key={n} className={current === n ? 'active' : ''} onClick={() => go(n)}>
+              <Icon d={PAGES[n].icon} /><span>{PAGES[n].title}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-bottom">
+          <button className="outline full" onClick={() => supabase.auth.signOut()}>تسجيل الخروج</button>
+        </div>
+      </aside>
+      {menuOpen && <div className="sidebar-scrim" onClick={() => setMenuOpen(false)} />}
+
+      <main className="main">
+        <header className="topbar">
+          <button type="button" className="menu-btn" onClick={() => setMenuOpen(true)} aria-label="فتح القائمة">
+            <Icon d="M4 6h16M4 12h16M4 18h16" />
+          </button>
+          <div className="top-actions">
+            {data.buildings.length > 1 && (
+              <label className="building-filter">
+                <span>عرض</span>
+                <select value={buildingId} onChange={(e) => setBuildingId(e.target.value)}>
+                  <option value="all">كل العمارات</option>
+                  {data.buildings.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              </label>
+            )}
+            <button type="button" className="theme-toggle" onClick={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))} aria-label="تغيير المظهر">{theme === 'light' ? '☾' : '☀'}</button>
+            <button type="button" className="refresh-btn" onClick={() => load()} disabled={loading} aria-label="تحديث البيانات">
+              <Icon d="M20 7v5h-5M4 17v-5h5M5.6 9a7 7 0 0111.6-2L20 12M4 12l2.8 5a7 7 0 0011.6-2" />
+            </button>
+          </div>
+        </header>
+
+        <section className="content">
+          {loadError && <div className="notice error" role="alert">{loadError}</div>}
+          {current === 'home' && (me.isAdmin ? <Overview {...props} /> : <ResidentHome {...props} />)}
+          {current === 'buildings' && <Buildings {...props} />}
+          {current === 'apartments' && <Apartments {...props} />}
+          {current === 'payments' && <Payments {...props} />}
+          {current === 'expenses' && <Expenses {...props} />}
+          {current === 'treasury' && <Treasury {...props} />}
+          {current === 'users' && <Users {...props} />}
+          {current === 'activity' && <Activity {...props} />}
+        </section>
+      </main>
+      {toast && <div className="toast" role="status">{toast}</div>}
+    </div>
+  );
 }

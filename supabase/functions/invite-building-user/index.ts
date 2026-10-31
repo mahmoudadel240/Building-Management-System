@@ -27,8 +27,9 @@ Deno.serve(async (req) => {
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json({ error: "Invalid request" }, 400); }
-  const { username, email, password, building_id, member_role = "resident" } = body as {
-    username?: string; email?: string | null; password?: string | null; building_id?: string | null; member_role?: string;
+  const { username, email, password, building_id, apartment_id, member_role = "resident" } = body as {
+    username?: string; email?: string | null; password?: string | null; building_id?: string | null;
+    apartment_id?: string | null; member_role?: string;
   };
 
   const clean = String(username || "").trim();
@@ -38,7 +39,7 @@ Deno.serve(async (req) => {
   if (!["resident", "admin", "superuser"].includes(member_role)) return json({ error: "Invalid role" }, 400);
 
   const privileged = ["owner", "superuser"].includes(profile.role);
-  if (!privileged && !(profile.role === "admin" && member_role === "resident" && building_id)) {
+  if (!privileged && !(member_role === "resident" && building_id)) {
     return json({ error: "Forbidden" }, 403);
   }
   if (member_role === "superuser" && profile.role !== "owner") return json({ error: "Only owner can create superuser" }, 403);
@@ -49,6 +50,14 @@ Deno.serve(async (req) => {
       .eq("building_id", building_id).eq("user_id", caller.id)
       .eq("member_role", "admin").eq("status", "approved").maybeSingle();
     if (!m) return json({ error: "Not an approved admin of this building" }, 403);
+  }
+
+  // A resident can be linked straight to their apartment (must be in the chosen building).
+  if (apartment_id) {
+    if (member_role !== "resident") return json({ error: "الشقة تُربط بالساكن فقط" }, 400);
+    const { data: apt } = await admin.from("apartments").select("id")
+      .eq("id", apartment_id).eq("building_id", building_id).maybeSingle();
+    if (!apt) return json({ error: "الشقة لا تتبع هذه العمارة" }, 400);
   }
 
   const { data: existing } = await admin.from("profiles").select("id").ilike("username", clean).maybeSingle();
@@ -74,7 +83,7 @@ Deno.serve(async (req) => {
 
   const { error: pe } = await admin.from("profiles").upsert({
     id: created.id, email: email || null, username: clean, display_name: clean,
-    role: member_role === "superuser" ? "superuser" : "resident",
+    role: member_role === "superuser" ? "superuser" : member_role === "admin" ? "admin" : "resident",
   }, { onConflict: "id" });
   if (pe) { await admin.auth.admin.deleteUser(created.id); return json({ error: pe.message }, 400); }
 
@@ -84,6 +93,18 @@ Deno.serve(async (req) => {
       approved_by: caller.id, approved_at: new Date().toISOString(),
     });
     if (error) { await admin.auth.admin.deleteUser(created.id); return json({ error: error.message }, 400); }
+  }
+
+  if (apartment_id) {
+    const { error } = await admin.from("apartment_residents").insert({
+      apartment_id, user_id: created.id, requested_by: caller.id, status: "approved",
+      reviewed_by: caller.id, reviewed_at: new Date().toISOString(),
+    });
+    if (error) {
+      await admin.from("building_members").delete().eq("user_id", created.id);
+      await admin.auth.admin.deleteUser(created.id);
+      return json({ error: error.message.includes("الحد الأقصى") ? error.message : "تعذر ربط الساكن بالشقة: " + error.message }, 400);
+    }
   }
 
   return json({

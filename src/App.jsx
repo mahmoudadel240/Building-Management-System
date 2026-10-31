@@ -53,7 +53,7 @@ export default function App(){
    setBuildings(vals[0]);setMembers(vals[1]);setApartments(vals[2]);setLinks(vals[3]);setPayments(vals[4]);setExpenses(vals[5]);setDues(vals[6]);setAccounts(vals[7]);setTransactions(vals[8]);setSubscriptions(vals[9]);
   }catch(e){setError(e.message||'تعذر تحميل البيانات')}finally{setBusy(false)}
  },[session]);
- useEffect(()=>{let alive=true;supabase.auth.getSession().then(({data,error})=>{if(!alive)return;if(error)setError(error.message);setSession(data.session);setLoading(false)});const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,s)=>setSession(s));return()=>{alive=false;subscription.unsubscribe()}},[]);
+ useEffect(()=>{if(!supabase){setLoading(false);return}let alive=true;supabase.auth.getSession().then(({data,error})=>{if(!alive)return;if(error)setError(error.message);setSession(data.session);setLoading(false)});const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,s)=>setSession(s));return()=>{alive=false;subscription.unsubscribe()}},[]);
  useEffect(()=>{if(session)load();else{setProfile(null);setBuildings([]);setApartments([])}},[session,load]);
  const visibleBuildings=buildings.filter(b=>buildingId==='all'||b.id===buildingId);
  const visibleIds=visibleBuildings.map(b=>b.id);

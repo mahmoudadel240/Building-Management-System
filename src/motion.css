@@ -1,0 +1,76 @@
+/* ===== Beitna motion: 150–650ms, ease-out, all switched off for reduced motion ===== */
+:root{--ease-out:cubic-bezier(.22,1,.36,1)}
+
+/* 1 · logo reveal: the mark draws in from the right, then settles */
+.login-logo,.brand-logo{animation:logoIn .9s var(--ease-out) both}
+@keyframes logoIn{0%{opacity:0;clip-path:inset(0 0 0 100%);transform:translateY(8px) scale(.96)}60%{opacity:1}100%{opacity:1;clip-path:inset(0);transform:none}}
+
+/* 2 · numbers count up (CountUp in motion.jsx) */
+.stat strong{font-variant-numeric:tabular-nums}
+
+/* 3 · collection ring on the stat */
+.stat.has-ring{position:relative;padding-inline-end:92px}
+.stat.has-ring .ring{position:absolute;inset-inline-end:16px;top:50%;margin-top:-32px;display:block}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:7}
+.ring-bg{stroke:var(--surface-sunken)}
+.ring-fg{stroke:var(--brand-indigo);stroke-linecap:round;stroke-dasharray:var(--c);stroke-dashoffset:var(--c);animation:ringFill 1.3s .15s var(--ease-out) forwards}
+@keyframes ringFill{to{stroke-dashoffset:var(--to)}}
+.ring.full{animation:ringPulse .7s 1.4s var(--ease-out)}
+.ring.full .ring-fg{stroke:var(--success);transition:stroke .3s 1.4s}
+@keyframes ringPulse{40%{transform:scale(1.12);filter:drop-shadow(0 0 10px var(--brand-butter))}}
+
+/* 4 · cards lift on hover / press */
+.building-card,.apt-card,.stat,.apt-tile{transition:transform .3s var(--ease-out),box-shadow .3s var(--ease-out)}
+.building-card:hover,.apt-card:hover{transform:translateY(-4px);box-shadow:0 16px 34px color-mix(in srgb,var(--brand-indigo) 20%,transparent)}
+.apt-card:active,.building-card:active{transform:translateY(-1px) scale(.99)}
+
+/* 5 · advance-payment note slides in, dots burst around it */
+.credit-note{position:relative;animation:noteIn .6s .1s var(--ease-out) both}
+@keyframes noteIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.sparks{position:absolute;inset:0;pointer-events:none}
+.sparks i{position:absolute;left:50%;top:50%;width:6px;height:6px;border-radius:50%;background:var(--brand-coral);opacity:0;animation:spark .9s .55s var(--ease-out) forwards}
+@keyframes spark{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--x),var(--y)) scale(.3)}}
+
+/* 6 · bell shake + badge pop */
+.notif-btn.ringing svg{animation:bell .9s ease;transform-origin:50% 8%}
+@keyframes bell{15%{transform:rotate(18deg)}30%{transform:rotate(-16deg)}45%{transform:rotate(11deg)}60%{transform:rotate(-8deg)}75%{transform:rotate(4deg)}}
+.notif-count{animation:badgePop .5s .15s var(--ease-out) both}
+@keyframes badgePop{0%{transform:scale(0)}70%{transform:scale(1.35)}100%{transform:scale(1)}}
+
+/* 7 · lists and grids appear one by one */
+.cards-grid>*,.stats>*,.apt-tiles>*,.building-users,.person-list>*,.notif-item,tbody tr,.review-card{animation:itemIn .45s var(--ease-out) backwards}
+@keyframes itemIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+:is(.cards-grid,.stats,.apt-tiles,.person-list,tbody)>:nth-child(2){animation-delay:.06s}
+:is(.cards-grid,.stats,.apt-tiles,.person-list,tbody)>:nth-child(3){animation-delay:.12s}
+:is(.cards-grid,.stats,.apt-tiles,.person-list,tbody)>:nth-child(4){animation-delay:.18s}
+:is(.cards-grid,.stats,.apt-tiles,.person-list,tbody)>:nth-child(5){animation-delay:.24s}
+:is(.cards-grid,.stats,.apt-tiles,.person-list,tbody)>:nth-child(6){animation-delay:.3s}
+:is(.cards-grid,.stats,.apt-tiles,.person-list,tbody)>:nth-child(n+7){animation-delay:.36s}
+
+/* 8 · popup + wizard steps slide in the direction you are going (RTL: next comes from the left) */
+.dialog{animation:dialogIn .38s var(--ease-out)}
+@keyframes dialogIn{from{opacity:0;transform:translateY(24px) scale(.97)}to{opacity:1;transform:none}}
+.dialog-backdrop{animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0}}
+form[data-dir=fwd] .step-body:not([hidden]),form[data-dir=fwd] .review-groups{animation:stepFwd .4s var(--ease-out)}
+form[data-dir=back] .step-body:not([hidden]),form[data-dir=back] .review-groups{animation:stepBack .4s var(--ease-out)}
+@keyframes stepFwd{from{opacity:0;transform:translateX(-32px)}to{opacity:1;transform:none}}
+@keyframes stepBack{from{opacity:0;transform:translateX(32px)}to{opacity:1;transform:none}}
+.stepper li,.stepper li b{transition:background .3s,border-color .3s,color .3s}
+
+/* 9 · status pill: colour change and a check that draws itself */
+.pill{transition:background .45s,color .45s}
+.pill-check{width:0;height:13px;margin-inline-end:0;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;animation:checkGrow .3s .1s var(--ease-out) forwards}
+.pill-check path{stroke-dasharray:24;stroke-dashoffset:24;animation:checkDraw .5s .25s var(--ease-out) forwards}
+@keyframes checkGrow{to{width:13px;margin-inline-end:5px}}
+@keyframes checkDraw{to{stroke-dashoffset:0}}
+
+/* 10 · theme switch: circle grows from the toggle (View Transitions) */
+::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
+::view-transition-old(root){z-index:1}
+::view-transition-new(root){z-index:2}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}

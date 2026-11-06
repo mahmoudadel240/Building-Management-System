@@ -1,3 +1,4 @@
+import { Sparks } from '../components/motion.jsx';
 import React, { useState } from 'react';
 import { PageHead, Panel, Table, StatusPill, Empty, FormDialog, SelectField } from '../components/ui';
 import { money, month, date, months, METHOD_LABEL } from '../lib/format';
@@ -56,6 +57,7 @@ export default function ResidentHome({ data, me, act }) {
               </div>
               {credit > 0 && (
                 <div className="credit-note">
+                  <Sparks />
                   <span>دافع مقدم <b>{money(credit)}</b></span>
                   {next?.paidThrough && <span>مدفوع لحد <b>{month(next.paidThrough)}</b></span>}
                 </div>

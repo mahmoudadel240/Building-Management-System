@@ -4,5 +4,6 @@ import App from './App.jsx';
 import './styles.css';
 import './ui.css';
 import './brand.css';
+import './motion.css';
 
 createRoot(document.getElementById('root')).render(<App />);

@@ -13,6 +13,8 @@ import Treasury from './pages/Treasury.jsx';
 import Users from './pages/Users.jsx';
 import Activity from './pages/Activity.jsx';
 import Notifications from './components/Notifications.jsx';
+import { switchTheme } from './components/motion.jsx';
+import { flushSync } from 'react-dom';
 
 const EMPTY = {
   profiles: [], buildings: [], members: [], apartments: [], links: [], payments: [], expenses: [],
@@ -182,7 +184,7 @@ export default function App() {
               </label>
             )}
             <Notifications data={data} me={me} go={go} />
-            <button type="button" className="theme-toggle" onClick={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))} aria-label="تغيير المظهر">{theme === 'light' ? '☾' : '☀'}</button>
+            <button type="button" className="theme-toggle" onClick={(e) => switchTheme(() => flushSync(() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))), e.currentTarget)} aria-label="تغيير المظهر">{theme === 'light' ? '☾' : '☀'}</button>
             <button type="button" className="refresh-btn" onClick={() => load()} disabled={loading} aria-label="تحديث البيانات">
               <Icon d="M20 7v5h-5M4 17v-5h5M5.6 9a7 7 0 0111.6-2L20 12M4 12l2.8 5a7 7 0 0011.6-2" />
             </button>

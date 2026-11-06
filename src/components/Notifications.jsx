@@ -95,6 +95,15 @@ export default function Notifications({ data, me, go }) {
   const ref = useRef(null);
   const items = useMemo(() => build(data, me), [data, me]);
   const unread = items.filter((n) => !seen.includes(n.id));
+  const [ringing, setRinging] = useState(false);
+  const lastCount = useRef(0);
+  useEffect(() => {
+    // shake the bell when something new arrives (and once when the page opens with news)
+    if (unread.length > lastCount.current) {
+      setRinging(true); const t = setTimeout(() => setRinging(false), 1000); lastCount.current = unread.length; return () => clearTimeout(t);
+    }
+    lastCount.current = unread.length; return undefined;
+  }, [unread.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open) return;
@@ -117,12 +126,12 @@ export default function Notifications({ data, me, go }) {
 
   return (
     <div className="notif" ref={ref}>
-      <button type="button" className="notif-btn" onClick={() => setOpen((o) => !o)} aria-expanded={open}
+      <button type="button" className={'notif-btn' + (ringing ? ' ringing' : '')} onClick={() => setOpen((o) => !o)} aria-expanded={open}
         aria-label={unread.length ? `الإشعارات، ${unread.length} جديد` : 'الإشعارات'}>
         <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M6 8a6 6 0 1112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 003.4 0" />
         </svg>
-        {unread.length > 0 && <span className="notif-count">{unread.length > 9 ? '9+' : unread.length}</span>}
+        {unread.length > 0 && <span key={unread.length} className="notif-count">{unread.length > 9 ? '9+' : unread.length}</span>}
       </button>
       {open && (
         <div className="notif-panel" role="dialog" aria-label="الإشعارات">

@@ -21,7 +21,7 @@ export default function Overview({ data, me, scoped, setPage }) {
 
       <div className="stats">
         <Stat big label="الرصيد الحالي في الخزنة" value={money(balance)} hint={`${num(scoped.buildings.length)} عمارة · ${num(apts.length)} شقة`} />
-        <Stat label="تحصيل الشهر" value={`${coll.rate}%`} hint={`${money(coll.paid)} من ${money(coll.due)}`} tone={coll.rate >= 80 ? 'good' : coll.rate >= 40 ? '' : 'warn'} />
+        <Stat label="تحصيل الشهر" ring={coll.rate} value={`${coll.rate}%`} hint={`${money(coll.paid)} من ${money(coll.due)}`} tone={coll.rate >= 80 ? 'good' : coll.rate >= 40 ? '' : 'warn'} />
         <Stat label="مستحقات متأخرة" value={money(owed.amount)} hint={`${num(owed.apartments)} شقة عليها مبالغ`} tone={owed.amount > 0 ? 'warn' : 'good'} />
         <Stat label="في انتظار الاعتماد" value={num(pending.length)} hint="تحصيلات ومصروفات" tone={pending.length ? 'warn' : ''} />
       </div>

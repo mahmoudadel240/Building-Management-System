@@ -1,11 +1,17 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { STATUS } from '../lib/format';
+import { CountUp, Ring } from './motion.jsx';
 
 /* ---------- small building blocks ---------- */
 
 export function StatusPill({ status }) {
   const s = STATUS[status] || { label: status, tone: 'muted' };
-  return <span className={'pill ' + s.tone}>{s.label}</span>;
+  return (
+    <span className={'pill ' + s.tone}>
+      {s.tone === 'success' && <svg className="pill-check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5" /></svg>}
+      {s.label}
+    </span>
+  );
 }
 
 export function Empty({ children = 'لا توجد بيانات بعد' }) {
@@ -50,11 +56,12 @@ export function Table({ headers, rows, empty }) {
   );
 }
 
-export function Stat({ label, value, hint, tone = '', big = false }) {
+export function Stat({ label, value, hint, tone = '', big = false, ring }) {
   return (
-    <div className={'stat ' + tone + (big ? ' stat-big' : '')}>
+    <div className={'stat ' + tone + (big ? ' stat-big' : '') + (ring != null ? ' has-ring' : '')}>
+      {ring != null && <Ring pct={ring} />}
       <span className="stat-label">{label}</span>
-      <strong>{value}</strong>
+      <strong>{typeof value === 'string' ? <CountUp value={value} /> : value}</strong>
       {hint && <small>{hint}</small>}
     </div>
   );
@@ -178,10 +185,13 @@ export function FormDialog({ open, onClose, title, subtitle, steps, submitLabel,
     return !firstBad;
   }
 
+  const [dir, setDir] = useState('fwd');
+  const goTo = (n) => { setDir(n >= step ? 'fwd' : 'back'); setStep(n); };
+
   function next() {
     if (!checkStep(step)) return;
     if (step + 1 === last) setReview(describe(formRef.current, steps));
-    setStep(step + 1);
+    goTo(step + 1);
   }
 
   async function submit(e) {
@@ -195,7 +205,7 @@ export function FormDialog({ open, onClose, title, subtitle, steps, submitLabel,
   return (
     <>
       <Dialog open={open && !askDiscard} onClose={requestClose} title={title} subtitle={subtitle}>
-        <form ref={formRef} onSubmit={submit} onInput={() => setDirty(true)} noValidate>
+        <form ref={formRef} data-dir={dir} onSubmit={submit} onInput={() => setDirty(true)} noValidate>
           {wizard && (
             <ol className="stepper" aria-label={`الخطوة ${step + 1} من ${steps.length + 1}`}>
               {[...steps.map((s) => s.title), 'مراجعة وحفظ'].map((t, i) => (
@@ -219,7 +229,7 @@ export function FormDialog({ open, onClose, title, subtitle, steps, submitLabel,
               <p className="step-hint">راجع البيانات قبل الحفظ. تقدر ترجع لأي خطوة وتعدّلها.</p>
               {review.map((g, i) => (
                 <section key={g.title} className="review-card">
-                  <header><h4>{g.title}</h4><button type="button" className="text-btn" onClick={() => setStep(i)}>تعديل</button></header>
+                  <header><h4>{g.title}</h4><button type="button" className="text-btn" onClick={() => goTo(i)}>تعديل</button></header>
                   <dl>{g.items.map((r) => <div key={r.label}><dt>{r.label}</dt><dd>{r.value}</dd></div>)}</dl>
                 </section>
               ))}
@@ -227,7 +237,7 @@ export function FormDialog({ open, onClose, title, subtitle, steps, submitLabel,
           )}
           {error && <div className="notice error" role="alert">{error}</div>}
           <div className="dialog-actions">
-            {wizard && step > 0 && <button type="button" className="outline" onClick={() => setStep(step - 1)}>السابق</button>}
+            {wizard && step > 0 && <button type="button" className="outline" onClick={() => goTo(step - 1)}>السابق</button>}
             <span className="spacer" />
             <button type="button" className="ghost" onClick={requestClose}>إلغاء</button>
             {/* different keys: React must not turn the same "Next" button into "Save" mid-click */}

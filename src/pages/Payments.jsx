@@ -3,6 +3,7 @@ import { PageHead, Panel, Table, StatusPill } from '../components/ui';
 import { ReviewButtons } from '../components/Review.jsx';
 import { money, date, METHOD_LABEL, personName } from '../lib/format';
 import PaymentDialog from './PaymentDialog.jsx';
+import QuickCollect from './QuickCollect.jsx';
 
 const TABS = [['all', 'الكل'], ['pending', 'قيد المراجعة'], ['approved', 'معتمد'], ['rejected', 'مرفوض']];
 
@@ -24,6 +25,7 @@ export default function Payments({ data, me, scoped, act }) {
         subtitle={me.isOwner ? 'راجع الدفعات واعتمدها عشان تدخل الخزنة' : 'الدفعات بتدخل الخزنة بعد اعتماد المالك'}
         action={<button className="primary" onClick={() => setOpen(true)}>＋ تسجيل دفعة</button>}
       />
+      <QuickCollect data={data} me={me} scoped={scoped} act={act} />
       <div className="tabs" role="tablist">
         {TABS.map(([k, l]) => (
           <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>
